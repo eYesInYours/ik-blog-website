@@ -8,6 +8,10 @@ export default defineNuxtConfig({
     localLayerAliases: true,
   },
 
+  devServer: {
+    port: parseInt(process.env.PORT || '3010'),
+  },
+
   // app config
   app: {
     // global transition
@@ -25,7 +29,12 @@ export default defineNuxtConfig({
   // modules
   modules: [
     // chore
-    '@nuxtjs/eslint-module',
+    ['@nuxtjs/eslint-module', {
+      // 仅在构建时检查，不在开发时实时检查
+      lintOnStart: false,
+      // 关闭开发时的实时检查
+      cache: false
+    }],
     // styling & ui
     '@nuxtjs/tailwindcss',
     'nuxt-headlessui',
@@ -79,15 +88,6 @@ export default defineNuxtConfig({
   },
 
   // module::content
-  content: {
-    markdown: {
-      mdc: true,
-    },
-    highlight: {
-      theme: 'github-dark',
-    },
-  },
-
   // todo: feat/localization
   // module::i18n
   // i18n: {
@@ -117,4 +117,29 @@ export default defineNuxtConfig({
   //     }
   //   ]
   // },
+  content: {
+    markdown: {
+      mdc: true,
+    },
+    highlight: {
+      theme: 'github-dark',
+    },
+  },
+
+  runtimeConfig: {
+    // 私有配置（仅在服务端可用）
+    apiSecret: '',
+    // 公共配置（客户端可用）
+    public: {
+      apiBase: process.env.NUXT_PUBLIC_API_BASE,
+      env: process.env.NODE_ENV || 'development',
+    },
+  },
+
+  // 开发环境特定配置
+  devtools: {
+    enabled: process.env.NODE_ENV === 'development'
+  },
+
+  compatibilityDate: '2025-01-03',
 })

@@ -28,15 +28,17 @@
     "tsconfig.json"
   ],
   "scripts": {
-    "build": "nuxt build ./app",
-    "dev": "nuxt dev ./app --no-clear",
-    "generate": "nuxt generate ./app",
-    "preview": "nuxt preview ./app",
-    "postinstall": "nuxt prepare ./app",
-    "dev:starter": "nuxt dev ./examples/starter",
+    "dev": "cross-env NODE_ENV=development nuxt dev --dotenv .env.development",
+    "build:prod": "cross-env NODE_ENV=production nuxt build --dotenv .env.production",
+    "start:prod": "cross-env NODE_ENV=production node .output/server/index.mjs",
+    "build:dev": "cross-env NODE_ENV=development nuxt build --dotenv .env.development",
+    "start:dev": "cross-env NODE_ENV=development node .output/server/index.mjs",
+    "preview": "nuxt preview",
     "lint": "eslint --ext \".ts,.js,.vue\" --ignore-path .eslintignore .",
     "lint:fix": "eslint --fix --ext \".ts,.js,.vue\" --ignore-path .eslintignore .",
-    "release": "release-it"
+    "postinstall": "nuxt prepare",
+    "generate": "nuxt generate",
+    "clean": "rimraf .nuxt dist .output node_modules"
   },
   "dependencies": {
     "@nuxt/content": "^2.9.0",
@@ -46,6 +48,7 @@
     "@pinia/nuxt": "^0.5.1",
     "@vueuse/core": "^10.5.0",
     "@vueuse/nuxt": "^10.5.0",
+    "cross-env": "^7.0.3",
     "nuxt-headlessui": "^1.1.4",
     "nuxt-icon": "^0.6.1",
     "pinia": "^2.1.7",

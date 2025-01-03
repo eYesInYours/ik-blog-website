@@ -3,13 +3,15 @@ const { awesome } = useAppConfig()
 const { parseMenuRoute, parseMenuTitle } = useNavbarParser()
 const $screen = useAwesomeScreen()
 const nuxtApp = useNuxtApp()
+import { useUserStore } from '~/stores/user'
+const userStore = useUserStore()
 
 const menus = computed(
   () =>
     (awesome?.layout?.page?.navbar?.menus ||
       []) as AwesomeLayoutPageNavbarMenu[],
 )
-
+console.log('menus:', menus.value)
 // drawer
 const showDrawer = ref(false)
 </script>
@@ -41,9 +43,26 @@ const showDrawer = ref(false)
         :class="{ 'divide-x divide-gray-500': menus.length > 0 }"
       >
         <div class="flex space-x-4 text-sm items-center">
-          <!-- dynamic menus -->
-          <template v-for="(item, i) in menus" :key="i">
-            <LayoutPageNavbarMenuWrapper :menu="item" />
+          <!-- 已登录显示菜单 -->
+          <template v-if="userStore.token">
+            <template v-for="(item, i) in menus" :key="i">
+              <LayoutPageNavbarMenuWrapper :menu="item" />
+            </template>
+          </template>
+          <!-- 未登录显示登录注册按钮 -->
+          <template v-else>
+            <NuxtLink 
+              to="/login"
+              class="px-4 py-2 text-gray-600 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
+            >
+              登录
+            </NuxtLink>
+            <NuxtLink 
+              to="/register"
+              class="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600"
+            >
+              注册
+            </NuxtLink>
           </template>
         </div>
         <!-- others -->

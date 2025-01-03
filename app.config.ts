@@ -1,8 +1,7 @@
 import type { RouteLocationRaw } from 'vue-router'
-import { NuxtApp } from '#app'
+import type { NuxtApp } from 'nuxt/app'
 import {
   AwesomeLayoutPageNavbarMenu,
-  AwesomeLayoutPageNavbarMenuDropdownItem,
 } from './types'
 
 export interface NuxtAwesomeAppConfig {
@@ -67,6 +66,30 @@ export interface NuxtAwesomeAppConfig {
 
   /** author config */
   disableInfoReplaceIndexInWelcomePage?: boolean
+
+  /** admin layout config */
+  admin?: {
+    /** admin menus */
+    menus?: {
+      /** top navigation */
+      nav?: Array<{
+        key: string
+        title: string
+        to?: string
+      }>
+      /** side menus */
+      side?: Array<{
+        key: string
+        title: string
+        icon?: string
+        children?: Array<{
+          key: string
+          title: string
+          to: string
+        }>
+      }>
+    }
+  }
 }
 
 declare module '@nuxt/schema' {
@@ -77,9 +100,9 @@ declare module '@nuxt/schema' {
 
 export default defineAppConfig({
   awesome: {
-    name: 'Nuxt 3 Awesome Starter',
+    name: '小书斋',
     description:
-      'a starter template for Nuxt 3 with minimalist themes design, built in components, drawer & menus, and more.',
+      '个人博客',
     project: {
       links: {
         github: 'https://github.com/viandwi24/nuxt3-awesome-starter',
@@ -88,7 +111,31 @@ export default defineAppConfig({
     layout: {
       page: {
         navbar: {
-          menus: [],
+          menus: [
+            { type: 'link', title: '朋友圈', to: { name: 'diary' } },
+            // { type: 'link', title: 'Post', to: { name: 'post' } },
+            { type: 'link', title: '消息', to: { name: 'comments' } },
+            { type: 'button', title: '个人中心', to: { name: 'setting' } },
+            { type: 'button', title: '后台管理', to: { name: 'admin' } },
+            // {
+            //   type: 'dropdown',
+            //   title: 'Documentations',
+            //   children: [
+            //     {
+            //       type: 'link',
+            //       title: 'Components',
+            //       to: { name: 'components' },
+            //     },
+            //   ],
+            // },
+            // dynamic title
+            // {
+            //   type: 'button',
+            //   title: (nuxt) =>
+            //     (nuxt._appConfig as AppConfigInput)?.awesome?.name || '',
+            //   to: (nuxt) => (nuxt._appConfig as AppConfigInput)?.awesome?.name || '',
+            // },
+          ],
         },
       },
       footer: {
@@ -122,4 +169,26 @@ export default defineAppConfig({
     class: '',
     size: '1em',
   },
+  admin: {
+    menus: {
+      side: [
+        {
+          key: 'dashboard',
+          title: '仪表盘',
+          icon: 'i-heroicons-home',
+          to: '/admin'
+        },
+        {
+          key: 'content',
+          title: '内容管理',
+          icon: 'i-heroicons-document-text',
+          children: [
+            { key: 'articles', title: '文章管理', to: '/admin/articles' },
+            { key: 'comments', title: '评论管理', to: '/admin/comments' },
+            { key: 'categories', title: '分类管理', to: '/admin/categories' }
+          ]
+        },
+      ]
+    }
+  }
 })
