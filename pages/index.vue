@@ -3,41 +3,109 @@ const { awesome } = useAppConfig()
 definePageMeta({ layout: 'page' })
 useHead({ titleTemplate: '', title: awesome?.name || '我的技术博客' })
 
+const { fetchApi } = useApi()
+
+interface Author {
+  _id: string
+  username: string
+  avatar: string
+}
+
+interface Article {
+  _id: string
+  title: string
+  content: string
+  category: string
+  cover: string
+  status: string
+  author: Author
+  authorAvatar: string
+  tags: string[]
+  comments: any[]
+  createdAt: string
+  updatedAt: string
+}
+
+interface ArticleResponse {
+  code: number
+  message: string
+  data: {
+    articles: Article[]
+    pagination: {
+      total: number
+      totalPages: number
+      currentPage: number
+      limit: number
+    }
+  }
+}
+
 // 文章列表数据
-const posts = ref([
-  {
-    id: 1,
-    title: '使用 Nuxt 3 构建现代化博客',
-    summary: '本文介绍如何使用 Nuxt 3、Vue 3 和 TypeScript 构建一个现代化的技术博客...',
-    date: '2024-03-20',
-    author: 'John Doe',
-    cover: '/images/blog-1.jpg',
-    tags: ['Nuxt', 'Vue', 'TypeScript']
-  },
-  // 更多文章...
-])
+const articles = ref<Article[]>([])
+const pagination = ref({
+  total: 0,
+  totalPages: 0,
+  currentPage: 1,
+  limit: 10
+})
+
+// 获取文章列表
+const fetchArticles = async (page = 1) => {
+  try {
+    const response = await fetchApi<ArticleResponse>('/articles', {
+      params: {
+        page,
+        limit: pagination.value.limit,
+      },
+    })
+
+    if (response.code === 200) {
+      articles.value = response.data.articles
+      pagination.value = response.data.pagination
+    }
+  } catch (error) {
+    console.error('获取文章列表失败:', error)
+  }
+}
+
+// 初始加载
+onMounted(() => {
+  fetchArticles()
+})
 
 // 侧边栏数据
-const tags = ref(['Vue', 'React', 'TypeScript', 'JavaScript', 'Node.js', 'Python'])
-const categories = ref(['前端开发', '后端开发', '开发工具', '学习笔记'])
-const recentPosts = computed(() => posts.value.slice(0, 5))
+const tags = computed(() => {
+  const allTags = articles.value.flatMap(article => article.tags)
+  return [...new Set(allTags)]
+})
 
 // 搜索功能
 const searchQuery = ref('')
-const filteredPosts = computed(() => {
-  if (!searchQuery.value) return posts.value
-  return posts.value.filter(post => 
-    post.title.toLowerCase().includes(searchQuery.value.toLowerCase())
+const filteredArticles = computed(() => {
+  if (!searchQuery.value) return articles.value
+  const query = searchQuery.value.toLowerCase()
+  return articles.value.filter(article =>
+    article.title.toLowerCase().includes(query)
   )
 })
 
 // 分页相关
-const currentPage = ref(1)
-const postsPerPage = 5
-const currentPosts = computed(() => {
-  const start = (currentPage.value - 1) * postsPerPage
-  return filteredPosts.value.slice(start, start + postsPerPage)
+const currentPage = computed({
+  get: () => pagination.value.currentPage,
+  set: (value) => {
+    fetchArticles(value)
+  }
 })
+
+// 格式化日期
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('zh-CN')
+}
+
+// 前往文章详情页面
+function handleClick(id: string) {
+  navigateTo(`/articles/${id}`)
+}
 </script>
 
 <template>
@@ -46,50 +114,71 @@ const currentPosts = computed(() => {
     <main class="main-content">
       <section class="posts-list">
         <h2 class="text-2xl font-bold mb-6">最新文章</h2>
-        
-        <article v-for="post in currentPosts" :key="post.id" 
-                class="post-card mb-8 bg-white rounded-lg shadow-sm overflow-hidden">
+
+        <!-- <NuxtLink :to="`/articles/${article._id}`"> -->
+        <article
+          v-for="article in filteredArticles"
+          :key="article._id"
+          class="post-card mb-8 bg-white rounded-lg shadow-sm overflow-hidden"
+          @click="handleClick(article._id)"
+        >
           <!-- 文章封面图 -->
           <div class="post-cover h-48 overflow-hidden">
-            <img :src="post.cover" :alt="post.title" 
-                 class="w-full h-full object-cover hover:scale-105 transition-transform duration-300">
+            <img
+              :src="article.cover"
+              :alt="article.title"
+              class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+            />
           </div>
-          
+
           <div class="p-6">
             <h3 class="text-xl font-semibold mb-2">
-              <NuxtLink :to="`/posts/${post.id}`" class="hover:text-primary-600">
-                {{ post.title }}
-              </NuxtLink>
+              <!-- <NuxtLink
+                :to="`/posts/${article._id}`"
+                class="hover:text-primary-600"
+              >
+                {{ article.title }}
+              </NuxtLink> -->
             </h3>
-            
-            <p class="text-gray-600 mb-4">{{ post.summary }}</p>
-            
+
+            <p class="text-gray-600 mb-4">
+              {{ article.content.replace(/<[^>]+>/g, '').slice(0, 200) }}...
+            </p>
+
             <div class="flex items-center text-sm text-gray-500">
-              <span>{{ post.date }}</span>
+              <span>{{ formatDate(article.createdAt) }}</span>
               <span class="mx-2">·</span>
-              <span>{{ post.author }}</span>
-              
+              <span>{{ article.author.username }}</span>
+
               <div class="ml-4 flex gap-2">
-                <span v-for="tag in post.tags" :key="tag" 
-                      class="px-2 py-1 bg-gray-100 rounded-full text-xs">
+                <span
+                  v-for="tag in article.tags"
+                  :key="tag"
+                  class="px-2 py-1 bg-gray-100 rounded-full text-xs"
+                >
                   {{ tag }}
                 </span>
               </div>
             </div>
           </div>
         </article>
+        <!-- </NuxtLink> -->
       </section>
 
       <!-- 分页控件 -->
       <div class="flex justify-center gap-2 mt-8">
-        <button @click="currentPage--" 
-                :disabled="currentPage === 1"
-                class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50">
+        <button
+          @click="currentPage--"
+          :disabled="currentPage === 1"
+          class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50"
+        >
           上一页
         </button>
-        <button @click="currentPage++" 
-                :disabled="currentPage * postsPerPage >= filteredPosts.length"
-                class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50">
+        <button
+          @click="currentPage++"
+          :disabled="currentPage >= pagination.totalPages"
+          class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50"
+        >
           下一页
         </button>
       </div>
@@ -99,58 +188,24 @@ const currentPosts = computed(() => {
     <aside class="sidebar">
       <!-- 搜索框 -->
       <div class="sidebar-widget">
-        <input v-model="searchQuery"
-               type="search"
-               placeholder="搜索文章..."
-               class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500">
-      </div>
-
-      <!-- 个人简介 -->
-      <div class="sidebar-widget">
-        <h3 class="widget-title">关于我</h3>
-        <div class="text-center">
-          <img src="/login-bg.jpg" alt="头像" class="w-24 h-24 rounded-full mx-auto mb-4">
-          <p class="text-gray-600">前端开发工程师，热爱技术分享</p>
-        </div>
-      </div>
-
-      <!-- 社交媒体链接 -->
-      <div class="sidebar-widget">
-        <h3 class="widget-title">关注我</h3>
-        <div class="flex justify-center gap-4">
-          <a href="https://github.com" target="_blank" class="social-link">
-            <i class="i-carbon-logo-github text-2xl"></i>
-          </a>
-          <a href="https://twitter.com" target="_blank" class="social-link">
-            <i class="i-carbon-logo-twitter text-2xl"></i>
-          </a>
-          <a href="https://linkedin.com" target="_blank" class="social-link">
-            <i class="i-carbon-logo-linkedin text-2xl"></i>
-          </a>
-        </div>
-      </div>
-
-      <!-- 分类 -->
-      <div class="sidebar-widget">
-        <h3 class="widget-title">分类</h3>
-        <ul class="space-y-2">
-          <li v-for="category in categories" :key="category">
-            <NuxtLink :to="`/category/${category}`" 
-                      class="text-gray-600 hover:text-primary-600">
-              {{ category }}
-            </NuxtLink>
-          </li>
-        </ul>
+        <input
+          v-model="searchQuery"
+          type="search"
+          placeholder="搜索文章..."
+          class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+        />
       </div>
 
       <!-- 标签云 -->
       <div class="sidebar-widget">
         <h3 class="widget-title">标签</h3>
         <div class="flex flex-wrap gap-2">
-          <NuxtLink v-for="tag in tags" 
-                    :key="tag" 
-                    :to="`/tags/${tag}`"
-                    class="px-3 py-1 bg-gray-100 rounded-full text-sm hover:bg-primary-100">
+          <NuxtLink
+            v-for="tag in tags"
+            :key="tag"
+            :to="`/tags/${tag}`"
+            class="px-3 py-1 bg-gray-100 rounded-full text-sm hover:bg-primary-100"
+          >
             {{ tag }}
           </NuxtLink>
         </div>
@@ -160,10 +215,12 @@ const currentPosts = computed(() => {
       <div class="sidebar-widget">
         <h3 class="widget-title">最新文章</h3>
         <ul class="space-y-4">
-          <li v-for="post in recentPosts" :key="post.id">
-            <NuxtLink :to="`/posts/${post.id}`" 
-                      class="text-sm hover:text-primary-600">
-              {{ post.title }}
+          <li v-for="article in articles.slice(0, 5)" :key="article._id">
+            <NuxtLink
+              :to="`/posts/${article._id}`"
+              class="text-sm hover:text-primary-600"
+            >
+              {{ article.title }}
             </NuxtLink>
           </li>
         </ul>

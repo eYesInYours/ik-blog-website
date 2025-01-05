@@ -116,7 +116,6 @@ export default defineAppConfig({
             // { type: 'link', title: 'Post', to: { name: 'post' } },
             { type: 'link', title: '消息', to: { name: 'comments' } },
             { type: 'button', title: '个人中心', to: { name: 'setting' } },
-            { type: 'button', title: '后台管理', to: { name: 'admin' } },
             // {
             //   type: 'dropdown',
             //   title: 'Documentations',
@@ -169,26 +168,4 @@ export default defineAppConfig({
     class: '',
     size: '1em',
   },
-  admin: {
-    menus: {
-      side: [
-        {
-          key: 'dashboard',
-          title: '仪表盘',
-          icon: 'i-heroicons-home',
-          to: '/admin'
-        },
-        {
-          key: 'content',
-          title: '内容管理',
-          icon: 'i-heroicons-document-text',
-          children: [
-            { key: 'articles', title: '文章管理', to: '/admin/articles' },
-            { key: 'comments', title: '评论管理', to: '/admin/comments' },
-            { key: 'categories', title: '分类管理', to: '/admin/categories' }
-          ]
-        },
-      ]
-    }
-  }
 })

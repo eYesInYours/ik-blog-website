@@ -1,6 +1,6 @@
 export const useApi = () => {
-  const { apiBaseUrl } = useEnvironment()
-  const baseURL = apiBaseUrl.value as string
+  const config = useRuntimeConfig()
+  const baseURL = config.public.apiBase as string
   const userStore = useUserStore()
 
   const fetchApi = $fetch.create({
@@ -21,7 +21,7 @@ export const useApi = () => {
     onResponseError({ response }) {
       const data = response._data
       const error = data?.message || '请求失败'
-      
+
       if (process.env.NODE_ENV === 'development') {
         console.error('API Error:', {
           status: response.status,
@@ -29,13 +29,13 @@ export const useApi = () => {
           error,
         })
       }
-      
+
       // 处理 401 未授权错误
       if (response.status === 401) {
         localStorage.removeItem('token')
         navigateTo('/login')
       }
-      
+
       throw new Error(error)
     },
   })
@@ -43,4 +43,4 @@ export const useApi = () => {
   return {
     fetchApi,
   }
-} 
+}

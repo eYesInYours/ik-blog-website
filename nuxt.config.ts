@@ -1,4 +1,5 @@
 import { createResolver } from '@nuxt/kit'
+import type { NuxtConfig } from '@nuxt/schema'
 const { resolve } = createResolver(import.meta.url)
 
 // https://nuxt.com/docs/api/configuration/nuxt-config
@@ -27,28 +28,18 @@ export default defineNuxtConfig({
   // },
 
   // modules
-  modules: [
-    // chore
-    ['@nuxtjs/eslint-module', {
-      // 仅在构建时检查，不在开发时实时检查
-      lintOnStart: false,
-      // 关闭开发时的实时检查
-      cache: false
-    }],
-    // styling & ui
-    '@nuxtjs/tailwindcss',
-    'nuxt-headlessui',
-    'nuxt-icon',
-    '@nuxtjs/color-mode',
-    // management
-    '@pinia/nuxt',
-    '@vueuse/nuxt',
-    // contents,
-    '@nuxt/content',
-
-    // todo: feat/localization
-    // '@nuxtjs/i18n'
-  ],
+  modules: [// chore
+  // ['@nuxtjs/eslint-module', {
+  //   // 仅在构建时检查，不在开发时实时检查
+  //   lintOnStart: false,
+  //   // 关闭开发时的实时检查
+  //   cache: false
+  // }], // styling & ui
+  '@nuxtjs/tailwindcss', 'nuxt-headlessui', 'nuxt-icon', '@nuxtjs/color-mode', // management
+  '@pinia/nuxt', '@vueuse/nuxt', // contents,
+  // todo: feat/localization
+  // '@nuxtjs/i18n'
+  '@nuxt/content'],
 
   css: [
     resolve('./assets/scss/_variables.scss'),
@@ -69,7 +60,7 @@ export default defineNuxtConfig({
   ],
 
   imports: {
-    dirs: [resolve('./stores'), '~/stores'],
+    dirs: [resolve('./stores'), '~/stores', '~/composables'],
   },
 
   // module::pinia

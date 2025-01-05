@@ -16,13 +16,13 @@ const error = ref('')
 const handleLogin = async () => {
   loading.value = true
   error.value = ''
-  
+
   try {
     const success = await login({
       email: form.value.email,
       password: form.value.password
     })
-    
+
     if (success) {
       router.push('/')
     } else {
@@ -74,12 +74,12 @@ const handleLogin = async () => {
             <!-- 记住我和忘记密码 -->
             <div class="flex items-center justify-between">
               <label class="flex items-center">
-                <input type="checkbox" 
+                <input type="checkbox"
                        v-model="rememberMe"
                        class="rounded border-gray-300 text-primary-600 focus:ring-primary-500">
                 <span class="ml-2 text-sm text-gray-600 dark:text-gray-400">自动登录</span>
               </label>
-              <NuxtLink to="/forgot-password" 
+              <NuxtLink to="/forgot-password"
                         class="text-sm text-primary-600 hover:text-primary-500">
                 忘记密码?
               </NuxtLink>
@@ -94,8 +94,8 @@ const handleLogin = async () => {
 
             <!-- 注册链接 -->
             <div class="text-center text-sm text-gray-600 dark:text-gray-400">
-              还没有账户? 
-              <NuxtLink to="/register" 
+              还没有账户?
+              <NuxtLink to="/register"
                         class="text-primary-600 hover:text-primary-500">
                 注册账户
               </NuxtLink>
@@ -167,4 +167,4 @@ const handleLogin = async () => {
     max-width: 100%;
   }
 }
-</style> 
+</style>

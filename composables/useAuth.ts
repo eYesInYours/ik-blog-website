@@ -19,7 +19,7 @@ export const useAuth = () => {
         logger.info('用户登录成功', userStore.getUserInfo)
         return true
       }
-      
+
       throw new Error(response.message)
     } catch (error) {
       logger.error('登录失败', error)
@@ -38,7 +38,7 @@ export const useAuth = () => {
       if (response.code === 200) {
         return true
       }
-      
+
       throw new Error(response.message)
     } catch (error) {
       logger.error('注册失败', error)
@@ -96,4 +96,4 @@ export const useAuth = () => {
     checkAuth,
     fetchUserInfo,
   }
-} 
+}
