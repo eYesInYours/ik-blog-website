@@ -113,6 +113,7 @@ export default defineAppConfig({
         navbar: {
           menus: [
             { type: 'link', title: '朋友圈', to: { name: 'diary' } },
+            { type: 'link', title: '归档', to: { name: 'archive' } },
             // { type: 'link', title: 'Post', to: { name: 'post' } },
             { type: 'link', title: '消息', to: { name: 'comments' } },
             { type: 'button', title: '个人中心', to: { name: 'setting' } },
