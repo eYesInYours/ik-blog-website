@@ -29,12 +29,6 @@ export default defineNuxtConfig({
 
   // modules
   modules: [// chore
-  // ['@nuxtjs/eslint-module', {
-  //   // 仅在构建时检查，不在开发时实时检查
-  //   lintOnStart: false,
-  //   // 关闭开发时的实时检查
-  //   cache: false
-  // }], // styling & ui
   '@nuxtjs/tailwindcss', 'nuxt-headlessui', 'nuxt-icon', '@nuxtjs/color-mode', // management
   '@pinia/nuxt', '@vueuse/nuxt', // contents,
   // todo: feat/localization
@@ -124,6 +118,7 @@ export default defineNuxtConfig({
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE,
       env: process.env.NODE_ENV || 'development',
+      weatherApiKey: process.env.NUXT_PUBLIC_WEATHER_API_KEY
     },
   },
 

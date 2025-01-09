@@ -112,6 +112,7 @@ export default defineAppConfig({
       page: {
         navbar: {
           menus: [
+            { type: 'link', title: '首页', to: { name: 'index' } },
             { type: 'link', title: '朋友圈', to: { name: 'diary' } },
             { type: 'link', title: '归档', to: { name: 'archive' } },
             // { type: 'link', title: 'Post', to: { name: 'post' } },

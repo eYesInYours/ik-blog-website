@@ -1,17 +1,18 @@
 import { defineStore } from 'pinia'
 import type { UserInfo, ApiResponse } from '~/types'
+import { computed } from 'vue'
 
 export const useUserStore = defineStore('user', {
   state: () => ({
-    token: null as string | null,
+    token: process.client ? localStorage.getItem('token') : null as string | null,
     userInfo: null as UserInfo | null,
   }),
 
   getters: {
     // 获取用户信息
-    getUserInfo: (state) => state.userInfo,
+    getUserInfo: (state) => computed(() => state.userInfo),
     // 获取token
-    getToken: (state) => state.token,
+    getToken: (state) => computed(() => state.token),
   },
 
   actions: {
@@ -19,15 +20,19 @@ export const useUserStore = defineStore('user', {
     setLoginState(token: string, userInfo: UserInfo) {
       this.token = token
       this.userInfo = userInfo
-      // 存储token到本地
-      localStorage.setItem('token', token)
+      // 仅在客户端存储token
+      if (process.client) {
+        localStorage.setItem('token', token)
+      }
     },
 
     // 清除登录状态
     clearLoginState() {
       this.token = null
       this.userInfo = null
-      localStorage.removeItem('token')
+      if (process.client) {
+        localStorage.removeItem('token')
+      }
     },
 
     // 更新用户信息
@@ -39,7 +44,7 @@ export const useUserStore = defineStore('user', {
 
     // 初始化状态
     async initializeState() {
-      const token = localStorage.getItem('token')
+      const token = process.client ? localStorage.getItem('token') : null
       if (token) {
         this.token = token
         try {
@@ -54,4 +59,4 @@ export const useUserStore = defineStore('user', {
       }
     },
   },
-}) 
+})

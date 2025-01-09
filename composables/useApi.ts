@@ -1,3 +1,5 @@
+import { storeToRefs } from 'pinia'
+
 export const useApi = () => {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBase as string
@@ -10,11 +12,12 @@ export const useApi = () => {
     },
     onRequest({ options }) {
       // 添加 token 到请求头
-      const token = userStore.getToken
-      if (token) {
+      const { token } = storeToRefs(userStore)
+      if (token.value) {
+        console.log(token.value)
         options.headers = {
           ...options.headers,
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token.value}`,
         }
       }
     },

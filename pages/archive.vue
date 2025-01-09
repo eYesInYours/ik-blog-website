@@ -1,4 +1,36 @@
+/* eslint-disable */
 <script lang="ts" setup>
+// 添加必要的类型导入
+import type { Article } from '~/types'
+
+// 声明 Nuxt 的组合式 API 类型
+declare module '#app' {
+  interface PageMeta {
+    layout?: string
+  }
+}
+
+// 如果 Article 类型未在其他地方定义，可以在这里定义
+interface Article {
+  _id: string
+  title: string
+  content: string
+  createdAt: string
+  views?: number
+  comments?: any[]
+  category: string
+  cover: string
+  status: string
+  tags: string[]
+  author: {
+    _id: string
+    username: string
+    avatar: string
+  }
+  authorAvatar: string
+  updatedAt: string
+}
+
 definePageMeta({ layout: 'page' })
 useHead({ title: '文章归档' })
 
@@ -26,7 +58,7 @@ interface ArchiveData {
 }
 
 // 状态管理
-const activeTab = ref<'time' | 'tag' | 'category'>('time')
+const activeTab = ref<'date' | 'tag' | 'category'>('date')
 const expandedYears = ref<Set<string>>(new Set())
 const expandedMonths = ref<Set<string>>(new Set())
 const expandedCategories = ref<Set<string>>(new Set())
@@ -43,128 +75,18 @@ const archiveData = ref<ArchiveData>({
   totalCount: 0
 })
 
-// 添加模拟数据
-const mockArchiveData: ArchiveData = {
-  years: {
-    '2024': {
-      months: {
-        '03': [
-          {
-            _id: '1',
-            title: '如何使用 Vue 3 Composition API',
-            content: '这是一篇关于 Vue 3 Composition API 的详细教程...',
-            createdAt: '2024-03-15T08:00:00.000Z',
-            views: 156,
-            comments: new Array(5),
-            category: '前端开发',
-            cover: 'https://picsum.photos/800/400',
-            status: 'published',
-            tags: ['Vue', 'JavaScript'],
-            author: {
-              _id: 'author1',
-              username: '小书斋',
-              avatar: 'https://picsum.photos/50/50'
-            },
-            authorAvatar: 'https://picsum.photos/50/50',
-            updatedAt: '2024-03-15T08:00:00.000Z'
-          },
-          {
-            _id: '2',
-            title: 'TypeScript 高级特性详解',
-            content: 'TypeScript 提供了许多高级特性，本文将详细介绍...',
-            createdAt: '2024-03-10T08:00:00.000Z',
-            views: 234,
-            comments: new Array(8),
-            category: '前端开发',
-            cover: 'https://picsum.photos/800/400',
-            status: 'published',
-            tags: ['TypeScript', 'JavaScript'],
-            author: {
-              _id: 'author1',
-              username: '小书斋',
-              avatar: 'https://picsum.photos/50/50'
-            },
-            authorAvatar: 'https://picsum.photos/50/50',
-            updatedAt: '2024-03-10T08:00:00.000Z'
-          }
-        ],
-        '02': [
-          {
-            _id: '3',
-            title: 'Node.js 性能优化实践',
-            content: '本文将分享一些 Node.js 性能优化的实践经验...',
-            createdAt: '2024-02-28T08:00:00.000Z',
-            views: 189,
-            comments: new Array(6),
-            category: '后端开发',
-            cover: 'https://picsum.photos/800/400',
-            status: 'published',
-            tags: ['Node.js', 'Performance'],
-            author: {
-              _id: 'author1',
-              username: '小书斋',
-              avatar: 'https://picsum.photos/50/50'
-            },
-            authorAvatar: 'https://picsum.photos/50/50',
-            updatedAt: '2024-02-28T08:00:00.000Z'
-          }
-        ]
-      },
-      count: 3
-    },
-    '2023': {
-      months: {
-        '12': [
-          {
-            _id: '4',
-            title: '深入理解 React Hooks',
-            content: 'React Hooks 的原理与最佳实践...',
-            createdAt: '2023-12-25T08:00:00.000Z',
-            views: 345,
-            comments: new Array(12),
-            category: '前端开发',
-            cover: 'https://picsum.photos/800/400',
-            status: 'published',
-            tags: ['React', 'JavaScript'],
-            author: {
-              _id: 'author1',
-              username: '小书斋',
-              avatar: 'https://picsum.photos/50/50'
-            },
-            authorAvatar: 'https://picsum.photos/50/50',
-            updatedAt: '2023-12-25T08:00:00.000Z'
-          }
-        ]
-      },
-      count: 1
-    }
-  },
-  tags: {
-    'Vue': [/* 相关文章 */],
-    'React': [/* 相关文章 */],
-    'TypeScript': [/* 相关文章 */],
-    'Node.js': [/* 相关文章 */],
-    'JavaScript': [/* 相关文章 */]
-  },
-  categories: {
-    '前端开发': {
-      'Vue': [/* 相关文章 */],
-      'React': [/* 相关文章 */]
-    },
-    '后端开发': {
-      'Node.js': [/* 相关文章 */]
-    }
-  },
-  totalCount: 4
-}
-
 // 修改获取归档数据的函数
 const fetchArchiveData = async () => {
   loading.value = true
   try {
     // 模拟 API 调用延迟
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    archiveData.value = mockArchiveData
+    const res = await fetchApi('/articles/archives', {
+      params: {
+        type: activeTab.value
+      }
+    })
+    archiveData.value = res.data
+
   } catch (error) {
     console.error('获取归档数据失败:', error)
   } finally {
@@ -206,7 +128,7 @@ const toggleCategory = (category: string) => {
 // 搜索和过滤
 const filteredArticles = computed(() => {
   let articles: Article[] = []
-  
+
   if (activeTab.value === 'time') {
     Object.values(archiveData.value.years).forEach(year => {
       Object.values(year.months).forEach(monthArticles => {
@@ -228,7 +150,7 @@ const filteredArticles = computed(() => {
   // 搜索过滤
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
-    articles = articles.filter(article => 
+    articles = articles.filter(article =>
       article.title.toLowerCase().includes(query) ||
       article.content.toLowerCase().includes(query)
     )
@@ -250,6 +172,10 @@ const filteredArticles = computed(() => {
   return articles
 })
 
+watch(activeTab, () => {
+  fetchArchiveData()
+})
+
 // 初始化
 onMounted(() => {
   fetchArchiveData()
@@ -263,25 +189,25 @@ onMounted(() => {
       <!-- 统计信息 -->
       <div class="stats-card">
         <h3 class="text-lg font-semibold mb-2">统计信息</h3>
-        <p>文章总数：{{ archiveData.totalCount }}</p>
+        <p>文章总数：{{ archiveData?.total || 0 }}</p>
       </div>
 
       <!-- 归档导航 -->
       <div class="nav-card">
         <div class="tabs">
-          <button 
-            :class="['tab', { active: activeTab === 'time' }]"
-            @click="activeTab = 'time'"
+          <button
+            :class="['tab', { active: activeTab === 'date' }]"
+            @click="activeTab = 'date'"
           >
             时间归档
           </button>
-          <button 
+          <button
             :class="['tab', { active: activeTab === 'tag' }]"
             @click="activeTab = 'tag'"
           >
             标签归档
           </button>
-          <button 
+          <button
             :class="['tab', { active: activeTab === 'category' }]"
             @click="activeTab = 'category'"
           >
@@ -311,115 +237,94 @@ onMounted(() => {
 
     <!-- 主内容区 -->
     <main class="archive-content">
-      <!-- 加载状态 -->
       <div v-if="loading" class="loading-state">
-        <div class="animate-pulse space-y-4">
-          <div v-for="i in 5" :key="i">
-            <div class="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-            <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-          </div>
-        </div>
+        <div class="loading-spinner">加载中...</div>
       </div>
 
-      <!-- 时间归档 -->
-      <template v-else-if="activeTab === 'time'">
-        <div v-for="(yearData, year) in archiveData.years" :key="year" class="year-section">
-          <div 
-            class="year-header"
-            @click="toggleYear(year)"
-          >
-            <h3>{{ year }} 年 ({{ yearData.count }})</h3>
-            <span class="toggle-icon">{{ expandedYears.has(year) ? '−' : '+' }}</span>
-          </div>
-
-          <div v-if="expandedYears.has(year)" class="year-content">
-            <div 
-              v-for="(monthArticles, month) in yearData.months" 
-              :key="`${year}-${month}`"
-              class="month-section"
-            >
-              <div 
-                class="month-header"
-                @click="toggleMonth(`${year}-${month}`)"
-              >
-                <h4>{{ month }} 月 ({{ monthArticles.length }})</h4>
-                <span class="toggle-icon">
-                  {{ expandedMonths.has(`${year}-${month}`) ? '−' : '+' }}
-                </span>
-              </div>
-
-              <ul v-if="expandedMonths.has(`${year}-${month}`)" class="article-list">
-                <li v-for="article in monthArticles" :key="article._id" class="article-item">
-                  <NuxtLink :to="`/articles/${article._id}`" class="article-link">
-                    <span class="article-date">{{ formatDate(article.createdAt) }}</span>
-                    <span class="article-title">{{ article.title }}</span>
-                    <span class="article-meta">
-                      <span>{{ article.views || 0 }} 阅读</span>
-                      <span>{{ article.comments?.length || 0 }} 评论</span>
-                    </span>
-                  </NuxtLink>
-                </li>
-              </ul>
+      <template v-else-if="archiveData?.archives">
+        <!-- 标签归档视图 -->
+        <template v-if="activeTab === 'tag'">
+          <div v-for="archive in archiveData.archives" :key="archive.tag" class="archive-section">
+            <div class="tag-header">
+              <h3 class="text-lg font-medium">
+                {{ archive.tag }}
+                <span class="text-sm text-gray-500">({{ archive.count }})</span>
+              </h3>
             </div>
-          </div>
-        </div>
-      </template>
-
-      <!-- 标签归档 -->
-      <template v-else-if="activeTab === 'tag'">
-        <div class="tags-container">
-          <div v-for="(articles, tag) in archiveData.tags" :key="tag" class="tag-section">
-            <h3 class="tag-header">{{ tag }} ({{ articles.length }})</h3>
-            <ul class="article-list">
-              <li v-for="article in articles" :key="article._id" class="article-item">
+            <div class="article-list">
+              <div v-for="article in archive.articles" :key="article._id" class="article-item">
                 <NuxtLink :to="`/articles/${article._id}`" class="article-link">
                   <span class="article-date">{{ formatDate(article.createdAt) }}</span>
                   <span class="article-title">{{ article.title }}</span>
+                  <div class="article-meta">
+                    <span>{{ article.likes }} 赞</span>
+                    <span>{{ article.comments }} 评论</span>
+                  </div>
                 </NuxtLink>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </template>
-
-      <!-- 分类归档 -->
-      <template v-else>
-        <div class="categories-container">
-          <div 
-            v-for="(subCategories, category) in archiveData.categories" 
-            :key="category"
-            class="category-section"
-          >
-            <div 
-              class="category-header"
-              @click="toggleCategory(category)"
-            >
-              <h3>{{ category }}</h3>
-              <span class="toggle-icon">
-                {{ expandedCategories.has(category) ? '−' : '+' }}
-              </span>
-            </div>
-
-            <div v-if="expandedCategories.has(category)" class="category-content">
-              <div 
-                v-for="(articles, subCategory) in subCategories" 
-                :key="subCategory"
-                class="subcategory-section"
-              >
-                <h4 class="subcategory-header">{{ subCategory }} ({{ articles.length }})</h4>
-                <ul class="article-list">
-                  <li v-for="article in articles" :key="article._id" class="article-item">
-                    <NuxtLink :to="`/articles/${article._id}`" class="article-link">
-                      <span class="article-date">{{ formatDate(article.createdAt) }}</span>
-                      <span class="article-title">{{ article.title }}</span>
-                    </NuxtLink>
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
-        </div>
+        </template>
+
+        <!-- 时间归档视图 -->
+        <template v-else-if="activeTab === 'date'">
+          <div v-for="year in archiveData.archives" :key="year.year" class="archive-section">
+            <div class="year-header" @click="toggleYear(year.year.toString())">
+              <h3 class="text-lg font-medium">
+                {{ year.year }}年
+                <span class="text-sm text-gray-500">({{ year.count }})</span>
+              </h3>
+            </div>
+            <div v-if="expandedYears.has(year.year.toString())" class="year-content">
+              <div v-for="month in year.months" :key="`${year.year}-${month.month}`" class="month-section">
+                <div class="month-header">
+                  {{ month.month }}月 ({{ month.count }})
+                </div>
+                <div class="article-list">
+                  <div v-for="article in month.articles" :key="article._id" class="article-item">
+                    <NuxtLink :to="`/articles/${article._id}`" class="article-link">
+                      <span class="article-date">{{ formatDate(article.createdAt) }}</span>
+                      <span class="article-title">{{ article.title }}</span>
+                      <div class="article-meta">
+                        <span>{{ article.likes }} 赞</span>
+                        <span>{{ article.comments }} 评论</span>
+                      </div>
+                    </NuxtLink>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </template>
+
+        <!-- 分类归档视图 -->
+        <template v-else>
+          <div v-for="archive in archiveData.archives" :key="archive.category" class="archive-section">
+            <div class="category-header">
+              <h3 class="text-lg font-medium">
+                {{ archive.category }}
+                <span class="text-sm text-gray-500">({{ archive.count }})</span>
+              </h3>
+            </div>
+            <div class="article-list">
+              <div v-for="article in archive.articles" :key="article._id" class="article-item">
+                <NuxtLink :to="`/articles/${article._id}`" class="article-link">
+                  <span class="article-date">{{ formatDate(article.createdAt) }}</span>
+                  <span class="article-title">{{ article.title }}</span>
+                  <div class="article-meta">
+                    <span>{{ article.likes }} 赞</span>
+                    <span>{{ article.comments }} 评论</span>
+                  </div>
+                </NuxtLink>
+              </div>
+            </div>
+          </div>
+        </template>
       </template>
+
+      <div v-if="!loading && (!archiveData?.archives || archiveData.archives.length === 0)" class="empty-state">
+        暂无文章
+      </div>
     </main>
   </div>
 </template>
@@ -432,12 +337,15 @@ onMounted(() => {
   display: grid;
   grid-template-columns: 280px 1fr;
   gap: 1.5rem;
+  min-height: calc(100vh - 4rem);
+  min-width: 320px;
 }
 
 .archive-sidebar {
   position: sticky;
   top: 1rem;
-  height: fit-content;
+  height: calc(100vh - 2rem);
+  overflow-y: auto;
 }
 
 .stats-card,
@@ -491,7 +399,11 @@ onMounted(() => {
   padding: 1.5rem;
   border-radius: 0.5rem;
   box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  min-height: 500px;
+  min-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  min-width: 0;
+  width: 100%;
+  min-width: 600px;
 }
 
 .year-header,
@@ -512,6 +424,7 @@ onMounted(() => {
 .article-list {
   margin: 0.75rem 0;
   padding-left: 2rem;
+  min-width: 280px;
 }
 
 .article-item {
@@ -550,6 +463,31 @@ onMounted(() => {
   gap: 1rem;
 }
 
+.archive-sidebar::-webkit-scrollbar,
+.archive-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.archive-sidebar::-webkit-scrollbar-thumb,
+.archive-content::-webkit-scrollbar-thumb {
+  background-color: #d1d5db;
+  border-radius: 3px;
+}
+
+.archive-sidebar::-webkit-scrollbar-track,
+.archive-content::-webkit-scrollbar-track {
+  background-color: #f3f4f6;
+}
+
+.loading-state {
+  min-height: calc(100vh - 5rem);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 2rem;
+  min-width: 280px;
+}
+
 @media (max-width: 768px) {
   .archive-layout {
     grid-template-columns: 1fr;
@@ -557,7 +495,14 @@ onMounted(() => {
 
   .archive-sidebar {
     position: static;
-    margin-bottom: 1rem;
+    height: auto;
+    min-height: auto;
+    margin-bottom: 1.5rem;
+  }
+
+  .archive-content {
+    min-height: calc(100vh - 20rem);
+    min-width: 300px;
   }
 
   .tabs {
@@ -571,4 +516,4 @@ onMounted(() => {
     text-align: center;
   }
 }
-</style> 
+</style>

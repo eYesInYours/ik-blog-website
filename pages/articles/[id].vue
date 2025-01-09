@@ -16,9 +16,7 @@
           <div class="author-info">
             <img
               :src="article.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${article.author.username}`"
-              :alt="article.author.username"
-              class="author-avatar"
-            />
+              :alt="article.author.username" class="author-avatar" />
             <span class="author-name">{{ article.author.username }}</span>
           </div>
           <time :datetime="article.createdAt" class="publish-date">
@@ -46,31 +44,145 @@
 
       <!-- 评论区 -->
       <section class="comments-section">
-        <h2 class="section-title">评论 ({{ article.comments.length }})</h2>
-
-        <!-- 评论列表 -->
-        <div class="comments-list">
-          <template v-if="article.comments.length > 0">
-            <CommentIndex
-              v-for="comment in article.comments"
-              :key="comment._id"
-              :comment="comment"
-              :submitting="submitting"
-            />
-          </template>
-          <div v-else class="no-comments">
-            暂无评论，来发表第一条评论吧！
+        <div class="comments-header">
+          <h2 class="section-title">评论 ({{ article.comments.length }})</h2>
+          <div class="comments-sort">
+            <button class="sort-btn" :class="{ active: sortBy === 'newest' }" @click="sortBy = 'newest'">
+              最新
+            </button>
+            <button class="sort-btn" :class="{ active: sortBy === 'hottest' }" @click="sortBy = 'hottest'">
+              最热
+            </button>
           </div>
         </div>
 
-        <!-- 评论输入框 -->
-        <CommentInput
-          :show="true"
-          placeholder="写下你的评论..."
-          submit-text="发表评论"
-          :submitting="submitting"
-          @submit="handleCommentSubmit"
-        />
+        <!-- 评论输入区域 -->
+        <div class="comment-editor" :class="{ 'focused': isEditorFocused }">
+          <div class="editor-header" v-if="user?.username">
+            <img :src="user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`"
+              :alt="user.username" class="user-avatar" />
+            <span class="username">{{ user.username }}</span>
+          </div>
+          <div class="editor-body">
+            <textarea v-model="commentContent" placeholder="写下你的评论..." @focus="isEditorFocused = true"
+              @blur="isEditorFocused = false" :disabled="!user?.username"
+              @keydown.ctrl.enter="submitComment"></textarea>
+            <div class="editor-footer" v-if="isEditorFocused || commentContent">
+              <div class="editor-tools">
+                <button class="tool-btn" @click="showEmoji = !showEmoji">
+                  😊
+                </button>
+                <div v-if="showEmoji" class="emoji-picker">
+                  <button v-for="emoji in emojis" :key="emoji" class="emoji-btn" @click="insertEmoji(emoji)">
+                    {{ emoji }}
+                  </button>
+                </div>
+              </div>
+              <div class="editor-actions">
+                <button class="cancel-btn" @click="resetEditor" v-if="commentContent">
+                  取消
+                </button>
+                <button class="submit-btn" :disabled="!commentContent.trim() || submitting" @click="submitComment">
+                  {{ submitting ? '发送中...' : '发送' }}
+                </button>
+              </div>
+            </div>
+            <div class="login-tip" v-if="!user?.username">
+              <a @click="navigateTo('/login')">登录</a> 后参与评论
+            </div>
+          </div>
+        </div>
+
+        <!-- 评论列表 -->
+        <div class="comments-list">
+          <div v-if="sortedComments.length > 0" class="comments-container">
+            <div v-for="comment in sortedComments" :key="comment._id" class="comment-item">
+              <div class="comment-main">
+                <div class="comment-header">
+                  <img
+                    :src="comment.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author.username}`"
+                    :alt="comment.author.username" class="comment-avatar" />
+                  <div class="comment-info">
+                    <span class="comment-author">{{ comment.author.username }}</span>
+                    <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+                  </div>
+                </div>
+                <div class="comment-content">{{ comment.content }}</div>
+                <div class="comment-actions">
+                  <button class="action-btn" :class="{ 'liked': comment.isLiked }" @click="handleLike(comment._id)">
+                    {{ comment.isLiked ? '❤️' : '🤍' }} {{ comment.likes || 0 }}
+                  </button>
+                  <button class="action-btn" @click="replyTo(comment._id)">
+                    💬 回复
+                  </button>
+                </div>
+
+                <!-- 回复输入框 -->
+                <div v-if="activeReplyKey === comment._id" class="reply-editor">
+                  <textarea v-model="replyContent" :placeholder="`回复 @${comment.author.username}`"
+                    class="reply-textarea" @keydown.ctrl.enter="submitReply(comment)"></textarea>
+                  <div class="reply-actions">
+                    <button class="cancel-btn" @click="cancelReply">取消</button>
+                    <button class="submit-btn" :disabled="!replyContent.trim() || submitting"
+                      @click="submitReply(comment)">
+                      {{ submitting ? '发送中...' : '发送' }}
+                    </button>
+                  </div>
+                </div>
+
+                <!-- 回复列表 -->
+                <div v-if="comment.replies?.length" class="replies-list">
+                  <div v-for="reply in comment.replies" :key="reply._id" class="reply-item">
+                    <div class="reply-header">
+                      <img
+                        :src="reply.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${reply.author.username}`"
+                        :alt="reply.author.username" class="reply-avatar" />
+                      <div class="reply-info">
+                        <div class="reply-meta">
+                          <span class="reply-author">{{ reply.author.username }}</span>
+                          <template v-if="reply.replyTo">
+                            <span class="reply-to">回复</span>
+                            <span class="reply-to-author">@{{ reply.replyTo.author.username }}</span>
+                          </template>
+                        </div>
+                        <span class="reply-time">{{ formatDate(reply.createdAt) }}</span>
+                      </div>
+                    </div>
+                    <div class="reply-content">{{ reply.content }}</div>
+                    <div class="reply-actions">
+                      <button class="action-btn" :class="{ 'liked': reply.isLiked }" @click="handleLike(reply._id)">
+                        {{ reply.isLiked ? '❤️' : '🤍' }} {{ reply.likes || 0 }}
+                      </button>
+                      <button class="action-btn" @click="replyTo(comment._id, reply)">
+                        💬 回复
+                      </button>
+                    </div>
+                    <!-- 子评论的回复输入框 -->
+                    <div v-if="activeReplyKey === `${comment._id}:${reply._id}`" class="reply-editor">
+                      <textarea v-model="replyContent" :placeholder="`回复 @${comment.author.username}`"
+                        class="reply-textarea" @keydown.ctrl.enter="submitReply(comment, reply)"></textarea>
+                      <div class="reply-actions">
+                        <button class="cancel-btn" @click="cancelReply">取消</button>
+                        <button class="submit-btn" :disabled="!replyContent.trim() || submitting"
+                          @click="submitReply(comment, reply)">
+                          {{ submitting ? '发送中...' : '发送' }}
+                        </button>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-else-if="!loading" class="no-comments">
+            暂无评论，来发表第一条评论吧！
+          </div>
+          <div v-else class="comments-loading">
+            <div class="loading-spinner"></div>
+            <span>加载评论中...</span>
+          </div>
+        </div>
       </section>
     </template>
 
@@ -87,6 +199,11 @@ import { marked } from 'marked'
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import DOMPurify from 'isomorphic-dompurify'
+import { useUserStore } from '~/stores/user'
+import { storeToRefs } from 'pinia'
+
+definePageMeta({ layout: 'page' })
+useHead({ title: '文章详情' })
 
 interface Author {
   _id: string
@@ -117,7 +234,8 @@ interface Article {
 
 const route = useRoute()
 const { fetchApi } = useApi()
-const { user } = useAuth()
+const userStore = useUserStore()
+const { userInfo: user, token } = storeToRefs(userStore)
 
 // 状态管理
 const article = ref<Article | null>(null)
@@ -178,14 +296,130 @@ const fetchArticle = async () => {
   }
 }
 
+// 评论编辑器状态
+const commentContent = ref('')
+const isEditorFocused = ref(false)
+const showEmoji = ref(false)
+
+// 表情列表
+const emojis = ['😊', '😂', '🤔', '👍', '❤️', '🎉', '🌟', '😅', '🤣', '😍']
+
+// 插入表情
+function insertEmoji(emoji: string) {
+  commentContent.value += emoji
+  showEmoji.value = false
+}
+
+// 重置编辑器
+function resetEditor() {
+  commentContent.value = ''
+  isEditorFocused.value = false
+  showEmoji.value = false
+}
+
 // 提交评论
-const handleCommentSubmit = async (content: string) => {
-  if (!user.value) {
+async function submitComment() {
+  if (!token.value || !commentContent.value.trim() || submitting.value) return
+
+  submitting.value = true
+  try {
+    await fetchApi('/comments', {
+      method: 'POST',
+      body: {
+        articleId: article.value?._id,
+        content: commentContent.value
+      }
+    })
+    await fetchComments()
+    resetEditor()
+  } catch (err) {
+    console.error('评论发送失败:', err)
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 回复相关状态
+const activeReplyKey = ref<string | null>(null)
+const replyContent = ref('')
+
+// 修改 replyTo 函数，支持回复某条回复
+function replyTo(commentId: string, reply?: Comment) {
+  if (!token.value) {
     navigateTo('/login')
     return
   }
+  activeReplyKey.value = reply ? `${commentId}:${reply._id}` : commentId
+  replyContent.value = ''
+}
 
-  if (!content.trim()) {
+// 取消回复
+function cancelReply() {
+  activeReplyKey.value = null
+  replyContent.value = ''
+}
+
+async function fetchComments() {
+  const response = await fetchApi<{
+    code: number
+    data: Comment[]
+    message: string
+  }>(`/comments/article/${route.params.id}`)
+  if (response.code === 200 && article.value) {
+    article.value.comments = response.data
+  }
+}
+
+// 提交回复
+async function submitReply(comment: Comment, replyTo?: Comment) {
+  if (!token.value || !replyContent.value.trim() || submitting.value) return
+
+  submitting.value = true
+  try {
+    await fetchApi('/comments', {
+      method: 'POST',
+      body: {
+        articleId: article.value?._id,
+        parentCommentId: comment._id,
+        content: replyContent.value,
+      }
+    })
+    // 只获取评论列表
+    await fetchComments()
+    cancelReply()
+  } catch (err) {
+    console.error('回复发送失败:', err)
+  } finally {
+    submitting.value = false
+  }
+}
+
+// 添加评论排序相关
+const sortBy = ref<'newest' | 'hottest'>('newest')
+
+// 排序后的评论列表
+const sortedComments = computed(() => {
+  if (!article.value?.comments) return []
+
+  const comments = [...article.value.comments]
+
+  if (sortBy.value === 'newest') {
+    return comments.sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+  } else {
+    return comments.sort((a, b) => (b.likes || 0) - (a.likes || 0))
+  }
+})
+
+// 处理评论回复
+const handleReply = async (data: {
+  commentId: string,
+  content: string,
+  parentCommentId?: string
+}) => {
+  if (!token.value) {
+    navigateTo('/login')
     return
   }
 
@@ -195,15 +429,33 @@ const handleCommentSubmit = async (content: string) => {
       method: 'POST',
       body: {
         articleId: article.value?._id,
-        content
+        commentId: data.commentId,
+        parentCommentId: data.parentCommentId,
+        content: data.content,
       }
     })
-    // 重新获取文章数据以更新评论
     await fetchArticle()
   } catch (err) {
-    console.error('提交评论失败:', err)
+    console.error('回复失败:', err)
   } finally {
     submitting.value = false
+  }
+}
+
+// 处理点赞
+const handleLike = async (commentId: string) => {
+  if (!user.value) {
+    navigateTo('/login')
+    return
+  }
+
+  try {
+    await fetchApi(`/comments/${commentId}/like`, {
+      method: 'POST'
+    })
+    await fetchArticle()
+  } catch (err) {
+    console.error('点赞失败:', err)
   }
 }
 
@@ -334,8 +586,13 @@ watch(() => route.params.id, () => {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .retry-button {
@@ -361,5 +618,385 @@ watch(() => route.params.id, () => {
   .article-title {
     font-size: 2rem;
   }
+}
+
+.comments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.comments-sort {
+  display: flex;
+  gap: 1rem;
+}
+
+.sort-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.sort-btn:hover {
+  background: #f3f4f6;
+}
+
+.sort-btn.active {
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.comments-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.comments-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.no-comments {
+  text-align: center;
+  padding: 3rem;
+  color: #6b7280;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+}
+
+/* 评论编辑器样式 */
+.comment-editor {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+  transition: all 0.3s;
+}
+
+.comment-editor.focused {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.editor-body {
+  padding: 1rem;
+}
+
+.editor-body textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.5rem;
+  border: none;
+  resize: vertical;
+  outline: none;
+  font-size: 0.875rem;
+}
+
+.editor-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.editor-tools {
+  position: relative;
+}
+
+.tool-btn {
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.tool-btn:hover {
+  background: #f3f4f6;
+}
+
+.emoji-picker {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  padding: 0.5rem;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.emoji-btn {
+  padding: 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.emoji-btn:hover {
+  background: #f3f4f6;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.cancel-btn,
+.submit-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn {
+  background: transparent;
+  border: 1px solid #e5e7eb;
+  color: #6b7280;
+}
+
+.cancel-btn:hover {
+  background: #f3f4f6;
+}
+
+.submit-btn {
+  background: #3b82f6;
+  border: 1px solid #2563eb;
+  color: white;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.login-tip {
+  text-align: center;
+  color: #6b7280;
+  padding: 1rem;
+}
+
+.login-tip a {
+  color: #3b82f6;
+  cursor: pointer;
+}
+
+/* 评论列表样式 */
+.comment-item {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.comment-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.comment-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.comment-author {
+  font-weight: 500;
+  color: #374151;
+}
+
+.comment-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.comment-content {
+  margin-bottom: 1rem;
+  line-height: 1.5;
+  color: #374151;
+}
+
+.comment-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  border-radius: 0.375rem;
+  transition: all 0.2s;
+}
+
+.action-btn:hover {
+  background: #f3f4f6;
+}
+
+.action-btn.liked {
+  color: #ef4444;
+}
+
+.reply-editor {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+}
+
+.reply-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  resize: vertical;
+  outline: none;
+  background: white;
+  font-size: 0.875rem;
+}
+
+.reply-textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.reply-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.replies-list {
+  margin-top: 1rem;
+  margin-left: 2rem;
+  padding-left: 1rem;
+  border-left: 2px solid #e5e7eb;
+}
+
+.reply-item {
+  padding: 1rem 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.reply-item:last-child {
+  border-bottom: none;
+}
+
+.reply-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.reply-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.reply-info {
+  flex: 1;
+}
+
+.reply-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.reply-author {
+  font-weight: 500;
+  color: #374151;
+}
+
+.reply-to {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.reply-to-author {
+  color: #3b82f6;
+  font-size: 0.875rem;
+}
+
+.reply-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.reply-content {
+  margin-bottom: 0.75rem;
+  padding-left: calc(24px + 0.75rem);
+  color: #374151;
+  line-height: 1.5;
 }
 </style>
