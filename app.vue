@@ -5,6 +5,11 @@ useHead({
   title: awesome.name,
   titleTemplate: `%s - ${awesome.name}`,
 })
+
+import { useNotification } from '~/composables/useNotification'
+
+const { notificationRef } = useNotification()
+provide('notification', notificationRef)
 </script>
 
 <template>
@@ -15,5 +20,6 @@ useHead({
       <NuxtLoadingIndicator />
       <NuxtPage />
     </NuxtLayout>
+    <CommonNotification ref="notification" />
   </Body>
 </template>

@@ -9,6 +9,13 @@ interface Author {
   _id: string
   username: string
   avatar: string
+  intro: string
+  joinTime: string
+  stats: {
+    articles: number
+    tags: number
+    views: number
+  }
 }
 
 interface Article {
@@ -49,13 +56,51 @@ const pagination = ref({
   limit: 10
 })
 
-// 加载状态
-const loading = ref(true)
+// 统一的加载状态管理
+const loadingStates = reactive({
+  articles: true,
+  author: true,
+  weather: true
+})
+
+// 统一的错误状态管理
+const errors = reactive({
+  articles: null as string | null,
+  author: null as string | null,
+  weather: null as string | null
+})
+
+// 计算总体加载状态
+const isLoading = computed(() => {
+  return Object.values(loadingStates).some(state => state)
+})
+
+// 作者信息
+const author = ref<Author | null>(null)
+const fetchAuthor = async () => {
+  try {
+    loadingStates.author = true
+    errors.author = null
+    const response = await fetchApi('/users/author')
+    if (response.code === 200) {
+      author.value = response.data
+    } else {
+      throw new Error(response.message || '获取作者信息失败')
+    }
+  } catch (error) {
+    console.error('获取作者信息失败:', error)
+    errors.author = error.message || '获取作者信息失败'
+    notification.error(errors.author)
+  } finally {
+    loadingStates.author = false
+  }
+}
 
 // 获取文章列表
 const fetchArticles = async (page = 1) => {
   try {
-    loading.value = true
+    loadingStates.articles = true
+    errors.articles = null
     const response = await fetchApi<ArticleResponse>('/articles', {
       params: {
         page,
@@ -66,17 +111,22 @@ const fetchArticles = async (page = 1) => {
     if (response.code === 200) {
       articles.value = response.data.articles
       pagination.value = response.data.pagination
+    } else {
+      throw new Error(response.message || '获取文章列表失败')
     }
   } catch (error) {
     console.error('获取文章列表失败:', error)
+    errors.articles = error.message || '获取文章列表失败'
+    notification.error(errors.articles)
   } finally {
-    loading.value = false
+    loadingStates.articles = false
   }
 }
 
 // 初始加载
 onMounted(() => {
   fetchArticles()
+  fetchAuthor()
 })
 
 // 侧边栏数据
@@ -145,55 +195,35 @@ const weather = ref<WeatherData>({
   windSpeed: 0
 })
 
-// 当前时间和问候语
-const currentTime = ref('')
-const greeting = ref('')
-
-// 更新时间和问候语
-const updateTimeAndGreeting = () => {
-  const now = new Date()
-  currentTime.value = now.toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-
-  const hour = now.getHours()
-  if (hour < 6) greeting.value = '夜深了，注意休息哦'
-  else if (hour < 9) greeting.value = '早安，开始美好的一天'
-  else if (hour < 12) greeting.value = '上午好，写点代码吧'
-  else if (hour < 14) greeting.value = '午安，休息一下吧'
-  else if (hour < 18) greeting.value = '下午好，来杯咖啡？'
-  else if (hour < 22) greeting.value = '晚上好，今天过得如何'
-  else greeting.value = '夜深了，注意休息哦'
-}
-
-// 获取天气图标
-const getWeatherIcon = () => {
-  const icons: Record<string, string> = {
-    sunny: 'heroicons:sun-solid',
-    cloudy: 'heroicons:cloud',
-    overcast: 'heroicons:cloud-solid',
-    'light-rain': 'heroicons:cloud',
-    rain: 'heroicons:cloud',
-    'heavy-rain': 'heroicons:cloud',
-    snow: 'heroicons:cloud',
-    fog: 'heroicons:cloud-solid'
+// 从缓存加载天气数据
+const loadCachedWeather = () => {
+  const cached = localStorage.getItem('weather-data')
+  if (cached) {
+    try {
+      const data = JSON.parse(cached)
+      const cacheTime = localStorage.getItem('weather-cache-time')
+      // 如果缓存时间小于30分钟,使用缓存数据
+      if (cacheTime && Date.now() - Number(cacheTime) < 30 * 60 * 1000) {
+        weather.value = data
+        loadingStates.weather = false
+        return true
+      }
+    } catch (e) {
+      console.error('解析缓存天气数据失败:', e)
+    }
   }
-  return icons[weather.value.condition] || icons.sunny
-}
-
-// 获取标签样式
-const getTagStyle = (tag: string) => {
-  const hue = Math.random() * 360
-  return {
-    backgroundColor: `hsl(${hue}, 70%, 95%)`,
-    color: `hsl(${hue}, 70%, 40%)`
-  }
+  return false
 }
 
 // 获取天气数据
 const fetchWeather = async () => {
   try {
+    // 如果是首次加载才显示加载状态
+    if (!loadCachedWeather()) {
+      loadingStates.weather = true
+    }
+    errors.weather = null
+    
     // 1. 先获取地理位置
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject)
@@ -232,9 +262,14 @@ const fetchWeather = async () => {
         humidity: Number(weatherInfo.humidity),
         windSpeed: Number(weatherInfo.windpower)
       }
+      // 更新缓存
+      localStorage.setItem('weather-data', JSON.stringify(weather.value))
+      localStorage.setItem('weather-cache-time', String(Date.now()))
     }
   } catch (error) {
     console.error('获取天气信息失败:', error)
+    errors.weather = error.message || '获取天气信息失败'
+    notification.error(errors.weather)
     // 设置默认值
     weather.value = {
       temperature: 25,
@@ -243,6 +278,8 @@ const fetchWeather = async () => {
       humidity: 50,
       windSpeed: 3
     }
+  } finally {
+    loadingStates.weather = false
   }
 }
 
@@ -253,7 +290,10 @@ onMounted(() => {
   timeInterval = setInterval(updateTimeAndGreeting, 60000)
 
   // 获取并定时更新天气
-  fetchWeather()
+  // 先尝试加载缓存数据
+  if (!loadCachedWeather()) {
+    fetchWeather()
+  }
   setInterval(fetchWeather, 1800000) // 每30分钟更新一次天气
 })
 
@@ -306,6 +346,52 @@ const formatWindSpeed = computed(() => {
   if (!speed || isNaN(speed)) return '微风'
   return `${speed}级`
 })
+
+// 当前时间和问候语
+const currentTime = ref('')
+const greeting = ref('')
+
+// 更新时间和问候语
+const updateTimeAndGreeting = () => {
+  const now = new Date()
+  currentTime.value = now.toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+
+  const hour = now.getHours()
+  if (hour < 6) greeting.value = '夜深了，注意休息哦'
+  else if (hour < 9) greeting.value = '早安，开始美好的一天'
+  else if (hour < 12) greeting.value = '上午好，写点代码吧'
+  else if (hour < 14) greeting.value = '午安，休息一下吧'
+  else if (hour < 18) greeting.value = '下午好，来杯咖啡？'
+  else if (hour < 22) greeting.value = '晚上好，今天过得如何'
+  else greeting.value = '夜深了，注意休息哦'
+}
+
+// 获取天气图标
+const getWeatherIcon = () => {
+  const icons: Record<string, string> = {
+    sunny: 'heroicons:sun-solid',
+    cloudy: 'heroicons:cloud',
+    overcast: 'heroicons:cloud-solid',
+    'light-rain': 'heroicons:cloud',
+    rain: 'heroicons:cloud',
+    'heavy-rain': 'heroicons:cloud',
+    snow: 'heroicons:cloud',
+    fog: 'heroicons:cloud-solid'
+  }
+  return icons[weather.value.condition] || icons.sunny
+}
+
+// 获取标签样式
+const getTagStyle = (tag: string) => {
+  const hue = Math.random() * 360
+  return {
+    backgroundColor: `hsl(${hue}, 70%, 95%)`,
+    color: `hsl(${hue}, 70%, 40%)`
+  }
+}
 </script>
 
 <template>
@@ -316,7 +402,7 @@ const formatWindSpeed = computed(() => {
         <h2 class="text-2xl font-bold mb-6">最新文章</h2>
 
         <!-- 骨架屏 -->
-        <template v-if="loading">
+        <template v-if="isLoading">
           <div v-for="n in 5" :key="n" class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
             <div class="flex p-3 gap-3">
               <div class="flex-1">
@@ -334,6 +420,18 @@ const formatWindSpeed = computed(() => {
               </div>
               <div class="w-32 h-24 bg-gray-200 rounded flex-shrink-0"></div>
             </div>
+          </div>
+        </template>
+
+        <!-- 错误提示 -->
+        <template v-else-if="errors.articles">
+          <div class="text-center py-8 text-gray-500">
+            <Icon name="carbon:warning" class="text-4xl mb-2" />
+            <p>{{ errors.articles }}</p>
+            <button @click="fetchArticles" 
+                    class="mt-4 px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
+              重试
+            </button>
           </div>
         </template>
 
@@ -386,7 +484,7 @@ const formatWindSpeed = computed(() => {
       </section>
 
       <!-- 分页控件 -->
-      <div v-if="!loading" class="flex justify-center gap-2 mt-8">
+      <div v-if="!isLoading" class="flex justify-center gap-2 mt-8">
         <button
           @click="currentPage--"
           :disabled="currentPage === 1"
@@ -406,22 +504,76 @@ const formatWindSpeed = computed(() => {
 
     <!-- 侧边栏 -->
     <aside class="sidebar">
-      <!-- 骨架屏 -->
-      <template v-if="loading">
-        <!-- 个人信息卡片骨架屏 -->
+      <!-- 个人信息卡片骨架屏 -->
+      <template v-if="isLoading">
         <div class="sidebar-widget profile-card animate-pulse">
-          <div class="skeleton-avatar"></div>
-          <div class="skeleton-text w-32 h-6 mx-auto mb-2"></div>
-          <div class="skeleton-text w-24 h-4 mx-auto mb-2"></div>
-          <div class="skeleton-text w-48 h-4 mx-auto mb-4"></div>
+          <div class="profile-header">
+            <div class="w-[100px] h-[100px] rounded-full bg-gray-200"></div>
+            <div class="flex flex-col items-center gap-2">
+              <div class="skeleton-text w-40 h-[28px]"></div>
+              <!-- <div class="skeleton-text w-32 h-[20px]"></div> -->
+              <div class="skeleton-text w-64 h-[20px]"></div>
+            </div>
+          </div>
           <div class="skeleton-stats">
             <div v-for="i in 3" :key="i" class="skeleton-stat-item">
-              <div class="skeleton-text w-8 h-6 mb-1"></div>
-              <div class="skeleton-text w-12 h-4"></div>
+              <div class="skeleton-text w-12 h-[28px]"></div>
+              <div class="skeleton-text w-16 h-[20px]"></div>
             </div>
           </div>
         </div>
+      </template>
 
+      <!-- 错误提示 -->
+      <template v-else-if="errors.author">
+        <div class="sidebar-widget profile-card">
+          <div class="text-center py-4 text-gray-500">
+            <Icon name="carbon:warning" class="text-4xl mb-2" />
+            <p>{{ errors.author }}</p>
+            <button @click="fetchAuthor" 
+                    class="mt-4 px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
+              重试
+            </button>
+          </div>
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="sidebar-widget profile-card">
+          <div class="profile-header">
+            <img
+              :src="author?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'"
+              :alt="author?.username"
+              class="w-[100px] h-[100px] rounded-full object-cover"
+            />
+            <div class="flex flex-col items-center gap-2">
+              <h3 class="text-xl font-medium h-[28px] leading-[28px]">{{ author?.username || '未登录' }}</h3>
+              <!-- <p class="text-sm text-gray-600 h-[20px] leading-[20px]">全栈开发者</p> -->
+              <p class="text-sm text-gray-500 text-center leading-[20px] line-clamp-2">
+                {{ author?.intro || '"代码如诗，编织数字世界的梦想"' }}
+              </p>
+            </div>
+          </div>
+
+          <div class="profile-stats">
+            <div class="stat-item">
+              <span class="text-xl font-medium h-[28px] leading-[28px]">{{ author?.stats.articles || 0 }}</span>
+              <span class="text-sm text-gray-500 h-[20px] leading-[20px]">文章</span>
+            </div>
+            <div class="stat-item">
+              <span class="text-xl font-medium h-[28px] leading-[28px]">{{ author?.stats.tags || 0 }}</span>
+              <span class="text-sm text-gray-500 h-[20px] leading-[20px]">标签</span>
+            </div>
+            <div class="stat-item">
+              <span class="text-xl font-medium h-[28px] leading-[28px]">{{ author?.stats.views || 0 }}</span>
+              <span class="text-sm text-gray-500 h-[20px] leading-[20px]">访问</span>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- 天气卡片 -->
+      <template v-if="isLoading">
         <!-- 天气卡片骨架屏 -->
         <div class="sidebar-widget weather-card weather-loading animate-pulse">
           <div class="flex items-center gap-4 mb-4">
@@ -440,40 +592,21 @@ const formatWindSpeed = computed(() => {
         </div>
       </template>
 
-      <!-- 实际内容 -->
-      <template v-else>
-        <!-- 个人信息卡片 -->
-        <div class="sidebar-widget profile-card">
-          <div class="profile-header">
-            <div class="avatar-wrapper">
-              <img
-                :src="userStore.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'"
-                :alt="userStore.username"
-                class="avatar"
-              />
-              <div class="avatar-ring"></div>
-            </div>
-            <h3 class="username">{{ userStore.username || '未登录' }}</h3>
-            <p class="role">全栈开发者</p>
-            <p class="motto">"代码如诗，编织数字世界的梦想"</p>
-          </div>
-
-          <div class="profile-stats">
-            <div class="stat-item">
-              <span class="stat-value">{{ articles.length }}</span>
-              <span class="stat-label">文章</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">{{ tags.length }}</span>
-              <span class="stat-label">标签</span>
-            </div>
-            <div class="stat-item">
-              <span class="stat-value">{{ totalViews }}</span>
-              <span class="stat-label">访问</span>
-            </div>
+      <!-- 错误提示 -->
+      <template v-else-if="errors.weather">
+        <div class="sidebar-widget weather-card">
+          <div class="text-center py-4">
+            <Icon name="carbon:warning" class="text-4xl mb-2" />
+            <p>{{ errors.weather }}</p>
+            <button @click="fetchWeather" 
+                    class="mt-4 px-4 py-2 text-sm bg-white/20 hover:bg-white/30 rounded-lg">
+              重试
+            </button>
           </div>
         </div>
+      </template>
 
+      <template v-else>
         <!-- 天气时间卡片 -->
         <div class="sidebar-widget weather-card" :class="getWeatherClass">
           <div class="weather-header">
@@ -503,7 +636,6 @@ const formatWindSpeed = computed(() => {
             <div class="current-time">{{ currentTime }}</div>
             <div class="time-greeting">{{ greeting }}</div>
           </div>
-
           <!-- 特殊日期彩蛋 -->
           <div v-if="isSpecialDate" class="special-date-banner">
             {{ specialDateMessage }}
@@ -624,78 +756,52 @@ const formatWindSpeed = computed(() => {
 }
 
 .profile-card {
-  position: relative;
-  overflow: hidden;
-  padding: 2rem 1.5rem;
-  text-align: center;
-  background: linear-gradient(135deg, #fff 0%, #f8f9fa 100%);
+  @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
 }
 
-.avatar-wrapper {
-  position: relative;
+.profile-card .skeleton-avatar,
+.profile-card img {
   width: 100px;
   height: 100px;
-  margin: 0 auto 1rem;
-}
-
-.avatar {
-  width: 100%;
-  height: 100%;
   border-radius: 50%;
-  object-fit: cover;
-  transition: transform 0.3s;
+  margin: 0 auto;
 }
 
-.avatar-ring {
-  position: absolute;
-  top: -5px;
-  left: -5px;
-  right: -5px;
-  bottom: -5px;
-  border: 2px solid var(--c-primary);
-  border-radius: 50%;
-  animation: rotate 10s linear infinite;
-}
-
-.username {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
-}
-
-.role {
-  color: var(--c-text-light);
-  margin-bottom: 0.5rem;
-}
-
-.motto {
-  font-style: italic;
-  color: var(--c-text-lighter);
-  margin-bottom: 1.5rem;
-}
-
-.profile-stats {
-  display: flex;
-  justify-content: space-around;
-  padding-top: 1rem;
-  border-top: 1px solid var(--c-border);
-}
-
-.stat-item {
+.profile-header,
+.profile-card.animate-pulse {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
 }
 
-.stat-value {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--c-primary);
+.profile-stats,
+.skeleton-stats {
+  width: 100%;
+  padding-top: 1.5rem;
+  margin-top: auto;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-around;
 }
 
-.stat-label {
-  font-size: 0.875rem;
-  color: var(--c-text-light);
+.stat-item,
+.skeleton-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 60px;
+}
+
+.username,
+.skeleton-text {
+  @apply font-medium;
 }
 
 .weather-card {
@@ -891,10 +997,12 @@ const formatWindSpeed = computed(() => {
 /* 响应式调整 */
 @media (max-width: 768px) {
   .profile-card {
-    padding: 1.5rem 1rem;
+    min-height: 320px;
+    padding: 1rem;
   }
 
-  .avatar-wrapper {
+  .profile-card .skeleton-avatar,
+  .profile-card img {
     width: 80px;
     height: 80px;
   }
@@ -988,7 +1096,7 @@ const formatWindSpeed = computed(() => {
   height: 100px;
   background-color: #e5e7eb;
   border-radius: 50%;
-  margin: 0 auto 1rem;
+  margin: 0 auto;
 }
 
 .skeleton-text {
@@ -1004,7 +1112,8 @@ const formatWindSpeed = computed(() => {
 .skeleton-stats {
   display: flex;
   justify-content: space-around;
-  padding-top: 1rem;
+  padding-top: 1.5rem;
+  margin-top: auto;
   border-top: 1px solid #e5e7eb;
 }
 
@@ -1012,6 +1121,7 @@ const formatWindSpeed = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 0.5rem;
 }
 
 /* 骨架屏动画 */
@@ -1047,5 +1157,119 @@ const formatWindSpeed = computed(() => {
 /* 添加过渡效果 */
 .weather-card:not(.weather-loading) {
   transition: background 0.5s ease-in-out;
+}
+
+/* 修改骨架屏样式 */
+.avatar-wrapper {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto;
+}
+
+.skeleton-avatar {
+  width: 100%;
+  height: 100%;
+  background-color: #e5e7eb;
+  border-radius: 50%;
+}
+
+.profile-card {
+  padding: 2rem 1.5rem;
+  min-height: 360px;
+}
+
+.skeleton-stats {
+  display: flex;
+  justify-content: space-around;
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.skeleton-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .avatar-wrapper {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .profile-card {
+    min-height: 320px;
+  }
+}
+
+/* 统一卡片基础样式 */
+.sidebar-widget.profile-card {
+  @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6;
+  min-height: 360px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* 统一头像样式 */
+.profile-card .skeleton-avatar,
+.profile-card img {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  margin: 0 auto;
+}
+
+/* 统一内容布局 */
+.profile-header,
+.profile-card.animate-pulse {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 0;
+}
+
+/* 统一底部统计样式 */
+.profile-stats,
+.skeleton-stats {
+  width: 100%;
+  padding-top: 1.5rem;
+  margin-top: auto;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-around;
+}
+
+.stat-item,
+.skeleton-stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 60px;
+}
+
+/* 统一文本样式 */
+.username,
+.skeleton-text {
+  @apply font-medium;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .sidebar-widget.profile-card {
+    min-height: 320px;
+    padding: 1rem;
+  }
+
+  .profile-card .skeleton-avatar,
+  .profile-card img {
+    width: 80px;
+    height: 80px;
+  }
 }
 </style>

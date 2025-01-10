@@ -19,11 +19,11 @@ export const useUserStore = defineStore('user', {
     // 设置登录状态
     setLoginState(token: string, userInfo: UserInfo) {
       this.token = token
-      this.userInfo = userInfo
       // 仅在客户端存储token
       if (process.client) {
         localStorage.setItem('token', token)
       }
+      this.setUserInfo(userInfo)
     },
 
     // 清除登录状态
@@ -32,6 +32,13 @@ export const useUserStore = defineStore('user', {
       this.userInfo = null
       if (process.client) {
         localStorage.removeItem('token')
+      }
+    },
+
+    setUserInfo(userInfo: UserInfo) {
+      this.userInfo = userInfo
+      if (process.client) {
+        localStorage.setItem('userInfo', JSON.stringify(userInfo))
       }
     },
 
@@ -51,7 +58,7 @@ export const useUserStore = defineStore('user', {
           const { fetchApi } = useApi()
           const response = await fetchApi<ApiResponse<UserInfo>>('/users/info')
           if (response.code === 200 && response.data) {
-            this.userInfo = response.data
+            this.setUserInfo(response.data)
           }
         } catch (error) {
           this.clearLoginState()

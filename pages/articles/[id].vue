@@ -1,5 +1,6 @@
 <template>
   <div class="article-container">
+    <CommonNotification ref="notification" />
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
       <div class="loading-spinner" />
@@ -24,6 +25,16 @@
           </time>
         </div>
 
+        <!-- 标签 -->
+        <div class="article-tags">
+          <i class="i-carbon-tag text-gray-400 mr-2" />
+          <div class="tags-list">
+            <span v-for="tag in article.tags" :key="tag" class="tag" :style="getTagStyle(tag)">
+              {{ tag }}
+            </span>
+          </div>
+        </div>
+
         <!-- 文章封面 -->
         <div v-if="article.cover" class="article-cover">
           <img :src="article.cover" :alt="article.title" />
@@ -33,17 +44,30 @@
       <!-- 文章内容 -->
       <article class="article-content markdown-body" v-html="sanitizedContent" />
 
-      <!-- 文章底部 -->
-      <footer class="article-footer">
-        <div class="tags">
-          <span v-for="tag in article.tags" :key="tag" class="tag">
-            {{ tag }}
-          </span>
+      <!-- 文章操作区 -->
+      <div class="article-actions-wrapper">
+        <div class="article-actions">
+          <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle" :disabled="!user">
+            <i :class="article.isLiked ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" />
+            <span>{{ article.likes || 0 }}</span>
+            <span class="action-label">点赞</span>
+          </button>
+          <button class="action-btn" :class="{ 'collected': article.isCollected }" @click="handleCollectArticle"
+            :disabled="!user">
+            <i :class="article.isCollected ? 'i-carbon-bookmark-filled' : 'i-carbon-bookmark'" />
+            <span>{{ article.collections || 0 }}</span>
+            <span class="action-label">收藏</span>
+          </button>
+          <button class="action-btn" :class="{ 'active': showCommentEditor }" @click="toggleCommentEditor">
+            <i class="i-carbon-chat" />
+            <span>{{ article.comments.length }}</span>
+            <span class="action-label">评论</span>
+          </button>
         </div>
-      </footer>
+      </div>
 
       <!-- 评论区 -->
-      <section class="comments-section">
+      <section ref="commentsSection" class="comments-section">
         <div class="comments-header">
           <h2 class="section-title">评论 ({{ article.comments.length }})</h2>
           <div class="comments-sort">
@@ -57,7 +81,7 @@
         </div>
 
         <!-- 评论输入区域 -->
-        <div class="comment-editor" :class="{ 'focused': isEditorFocused }">
+        <div v-show="showCommentEditor" class="comment-editor" :class="{ 'focused': isEditorFocused }">
           <div class="editor-header" v-if="user?.username">
             <img :src="user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`"
               :alt="user.username" class="user-avatar" />
@@ -201,6 +225,8 @@ import 'highlight.js/styles/github.css'
 import DOMPurify from 'isomorphic-dompurify'
 import { useUserStore } from '~/stores/user'
 import { storeToRefs } from 'pinia'
+import { useNotification } from '~/composables/useNotification'
+import CommonNotification from '~/components/common/Notification.vue'
 
 definePageMeta({ layout: 'page' })
 useHead({ title: '文章详情' })
@@ -230,11 +256,34 @@ interface Article {
   comments: Comment[]
   createdAt: string
   updatedAt: string
+  likes: number
+  collections: number
+  isLiked: boolean
+  isCollected: boolean
+}
+
+interface LikeResponse {
+  code: number
+  data: {
+    likes: number
+    isLiked: boolean
+  }
+  message: string
+}
+
+interface CollectResponse {
+  code: number
+  data: {
+    collections: number
+    isCollected: boolean
+  }
+  message: string
 }
 
 const route = useRoute()
 const { fetchApi } = useApi()
 const userStore = useUserStore()
+const { success, error: showError, warning } = useNotification()
 const { userInfo: user, token } = storeToRefs(userStore)
 
 // 状态管理
@@ -296,9 +345,10 @@ const fetchArticle = async () => {
   }
 }
 
-// 评论编辑器状态
-const commentContent = ref('')
+// 评论相关状态
+const showCommentEditor = ref(false)
 const isEditorFocused = ref(false)
+const commentContent = ref('')
 const showEmoji = ref(false)
 
 // 表情列表
@@ -459,6 +509,69 @@ const handleLike = async (commentId: string) => {
   }
 }
 
+// 处理文章点赞
+const handleLikeArticle = async () => {
+  if (!user.value) {
+    warning('请先登录')
+    navigateTo('/login')
+    return
+  }
+
+  try {
+    const response = await fetchApi<LikeResponse>(`/articles/${article.value?._id}/like`, {
+      method: 'POST'
+    })
+
+    if (response.code === 200) {
+      article.value!.isLiked = !article.value!.isLiked
+      article.value!.likes = response.data.likes
+      success(response.message)
+    }
+  } catch (err) {
+    console.error('点赞失败:', err)
+    showError(err instanceof Error ? err.message : '操作失败，请重试')
+  }
+}
+
+// 处理文章收藏
+const handleCollectArticle = async () => {
+  if (!user.value) {
+    warning('请先登录')
+    navigateTo('/login')
+    return
+  }
+
+  try {
+    const response = await fetchApi<CollectResponse>(`/articles/${article.value?._id}/collect`, {
+      method: 'POST'
+    })
+
+    if (response.code === 200) {
+      article.value!.isCollected = !article.value!.isCollected
+      article.value!.collections = response.data.collections
+      success(response.message)
+    }
+  } catch (err) {
+    console.error('收藏失败:', err)
+    showError(err instanceof Error ? err.message : '操作失败，请重试')
+  }
+}
+
+// 切换评论编辑器显示状态
+const toggleCommentEditor = () => {
+  showCommentEditor.value = !showCommentEditor.value
+  if (showCommentEditor.value) {
+    // 滚动到评论区
+    commentsSection.value?.scrollIntoView({ behavior: 'smooth' })
+    // 如果未登录，提示登录
+    if (!user.value) {
+      warning('请先登录')
+      navigateTo('/login')
+      return
+    }
+  }
+}
+
 // 页面加载时获取数据
 onMounted(() => {
   fetchArticle()
@@ -468,6 +581,24 @@ onMounted(() => {
 watch(() => route.params.id, () => {
   fetchArticle()
 })
+
+// 评论区域引用
+const commentsSection = ref<HTMLElement | null>(null)
+
+// 生成标签颜色
+const getTagStyle = (tag: string) => {
+  // 使用字符串哈希生成一个稳定的色相值
+  const hashCode = tag.split('').reduce((acc, char) => {
+    return char.charCodeAt(0) + ((acc << 5) - acc)
+  }, 0)
+  const hue = Math.abs(hashCode % 360) // 0-360 的色相值
+
+  return {
+    backgroundColor: `hsl(${hue}, 85%, 96%)`,
+    color: `hsl(${hue}, 70%, 40%)`,
+    borderColor: `hsl(${hue}, 70%, 90%)`
+  }
+}
 </script>
 
 <style scoped>
@@ -539,19 +670,61 @@ watch(() => route.params.id, () => {
   border-top: 1px solid #e5e7eb;
 }
 
-.tags {
+.article-tags {
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0;
+  padding: 0.5rem 1rem;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+.tags-list {
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
 }
 
 .tag {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   padding: 0.25rem 0.75rem;
-  background-color: #f3f4f6;
   border-radius: 9999px;
   font-size: 0.875rem;
-  color: #374151;
+  border: 1px solid;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.tag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 适配暗色模式 */
+:root[class~="dark"] .article-tags {
+  background: #1f2937;
+}
+
+:root[class~="dark"] .tag {
+  opacity: 0.9;
+}
+
+:root[class~="dark"] .tag:hover {
+  opacity: 1;
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  .article-tags {
+    padding: 0.5rem;
+    margin: 1rem 0;
+  }
+
+  .tag {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
 }
 
 .comments-section {
@@ -998,5 +1171,197 @@ watch(() => route.params.id, () => {
   padding-left: calc(24px + 0.75rem);
   color: #374151;
   line-height: 1.5;
+}
+
+/* 文章操作按钮样式 */
+.article-actions-wrapper {
+  margin: 2rem 0;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.article-actions {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #6b7280;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.action-btn:hover:not(:disabled) {
+  border-color: #3b82f6;
+  color: #3b82f6;
+}
+
+.action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.action-btn.liked {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: #fef2f2;
+}
+
+.action-btn.collected {
+  border-color: #f59e0b;
+  color: #f59e0b;
+  background: #fffbeb;
+}
+
+/* 适配暗色模式 */
+:root[class~="dark"] .action-btn {
+  background: #1f2937;
+  border-color: #374151;
+  color: #9ca3af;
+}
+
+:root[class~="dark"] .action-btn:hover:not(:disabled) {
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+:root[class~="dark"] .action-btn.liked {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
+}
+
+:root[class~="dark"] .action-btn.collected {
+  border-color: #f59e0b;
+  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.article-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+}
+
+.tags {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.tag {
+  padding: 0.25rem 0.75rem;
+  background-color: #e5e7eb;
+  color: #374151;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.tag:hover {
+  background-color: #d1d5db;
+}
+
+.article-actions {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #6b7280;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.action-label {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.875rem;
+}
+
+/* 适配暗色模式 */
+:root[class~="dark"] .article-info {
+  background: #1f2937;
+}
+
+:root[class~="dark"] .tag {
+  background-color: #374151;
+  color: #d1d5db;
+}
+
+:root[class~="dark"] .tag:hover {
+  background-color: #4b5563;
+}
+
+/* 响应式调整 */
+@media (max-width: 640px) {
+  .article-info {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .article-actions {
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .action-btn {
+    min-width: auto;
+    padding: 0.5rem;
+  }
+
+  .action-label {
+    display: none;
+  }
+}
+
+.article-actions-wrapper {
+  margin: 2rem 0;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+  text-align: center;
+}
+
+.article-actions {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+}
+
+.action-btn.active {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+:root[class~="dark"] .article-actions-wrapper {
+  background: #1f2937;
 }
 </style>

@@ -1,12 +1,14 @@
 import { storeToRefs } from 'pinia'
 
-export const useApi = () => {
+export const useApi = (options?: any) => {
   const config = useRuntimeConfig()
   const baseURL = config.public.apiBase as string
   const userStore = useUserStore()
 
   const fetchApi = $fetch.create({
     baseURL,
+    // 配置
+    ...options,
     headers: {
       'Content-Type': 'application/json',
     },
