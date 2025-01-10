@@ -116,7 +116,7 @@ export default defineAppConfig({
             { type: 'link', title: '朋友圈', to: { name: 'diary' } },
             { type: 'link', title: '归档', to: { name: 'archive' } },
             // { type: 'link', title: 'Post', to: { name: 'post' } },
-            { type: 'link', title: '消息', to: { name: 'comments' } },
+            { type: 'link', title: '消息', to: { name: 'notifications' } },
             { type: 'button', title: '个人中心', to: { name: 'setting' } },
             // {
             //   type: 'dropdown',

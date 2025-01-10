@@ -1,6 +1,5 @@
 <template>
   <div class="article-container">
-    <CommonNotification ref="notification" />
     <!-- 加载状态 -->
     <div v-if="loading" class="loading-state">
       <div class="loading-spinner" />
@@ -225,8 +224,6 @@ import 'highlight.js/styles/github.css'
 import DOMPurify from 'isomorphic-dompurify'
 import { useUserStore } from '~/stores/user'
 import { storeToRefs } from 'pinia'
-import { useNotification } from '~/composables/useNotification'
-import CommonNotification from '~/components/common/Notification.vue'
 
 definePageMeta({ layout: 'page' })
 useHead({ title: '文章详情' })
@@ -283,7 +280,6 @@ interface CollectResponse {
 const route = useRoute()
 const { fetchApi } = useApi()
 const userStore = useUserStore()
-const { success, error: showError, warning } = useNotification()
 const { userInfo: user, token } = storeToRefs(userStore)
 
 // 状态管理

@@ -90,7 +90,6 @@ const fetchAuthor = async () => {
   } catch (error) {
     console.error('获取作者信息失败:', error)
     errors.author = error.message || '获取作者信息失败'
-    notification.error(errors.author)
   } finally {
     loadingStates.author = false
   }
@@ -117,7 +116,6 @@ const fetchArticles = async (page = 1) => {
   } catch (error) {
     console.error('获取文章列表失败:', error)
     errors.articles = error.message || '获取文章列表失败'
-    notification.error(errors.articles)
   } finally {
     loadingStates.articles = false
   }
@@ -269,7 +267,6 @@ const fetchWeather = async () => {
   } catch (error) {
     console.error('获取天气信息失败:', error)
     errors.weather = error.message || '获取天气信息失败'
-    notification.error(errors.weather)
     // 设置默认值
     weather.value = {
       temperature: 25,
