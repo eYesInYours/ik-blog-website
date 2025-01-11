@@ -177,9 +177,7 @@ watch(activeTab, () => {
 })
 
 // 初始化
-onMounted(() => {
-  fetchArchiveData()
-})
+fetchArchiveData()
 </script>
 
 <template>
@@ -302,7 +300,7 @@ onMounted(() => {
           <div v-for="archive in archiveData.archives" :key="archive.category" class="archive-section">
             <div class="category-header">
               <h3 class="text-lg font-medium">
-                {{ archive.category }}
+                {{ archive.categoryName }}
                 <span class="text-sm text-gray-500">({{ archive.count }})</span>
               </h3>
             </div>

@@ -4,6 +4,8 @@ import type { NuxtConfig } from '@nuxt/schema'
 const { resolve } = createResolver(import.meta.url)
 
 export default defineNuxtConfig({
+  ssr: true,// 是否启用服务器端渲染
+  
   modules: [
     '@pinia/nuxt',
     '@nuxt/ui',
@@ -12,7 +14,6 @@ export default defineNuxtConfig({
   ],
 
   app: {
-    // global transition
     pageTransition: { name: 'page', mode: 'out-in' },
     layoutTransition: { name: 'layout', mode: 'out-in' },
   },
@@ -24,21 +25,15 @@ export default defineNuxtConfig({
 
   devtools: { enabled: true },
 
-  
   imports: {
     dirs: [resolve('./stores'), '~/stores', '~/composables'],
   },
 
-  // module::pinia
   pinia: {
     storesDirs: ['~/stores/**', '#/stores/**', '@/stores/**'],
   },
 
-  // module::headlessui
-  headlessui: {
-    prefix: 'Headless',
-  },
-
+  // 组件配置
   components: [
     {
       prefix: 'Layout',
@@ -60,16 +55,14 @@ export default defineNuxtConfig({
 
   ui: {
     global: true,
-    icons: ['ph'],
+    icons: ['heroicons'],
     notifications: {
       position: 'top-right'
     }
   },
 
   runtimeConfig: {
-    // 私有配置（仅在服务端可用）
     apiSecret: '',
-    // 公共配置（客户端可用）
     public: {
       apiBase: process.env.NUXT_PUBLIC_API_BASE,
       env: process.env.NODE_ENV || 'development',
@@ -77,5 +70,9 @@ export default defineNuxtConfig({
     },
   },
 
-  compatibilityDate: '2025-01-10',
+  build: {
+    transpile: ['@headlessui/vue']
+  },
+
+  compatibilityDate: '2025-01-10'
 })

@@ -7,9 +7,10 @@ import { compressImage } from '~/utils/image'
 definePageMeta({ layout: 'page' })
 useHead({ title: '个人中心' })
 
+const { successToast, errorToast } = useToastMsg()
+
 const { fetchApi } = useApi()
 const userStore = useUserStore()
-const notification = useNotificationStore()
 
 // 上传状态
 const uploading = ref(false)
@@ -137,9 +138,6 @@ const saveUserInfo = async () => {
       const { data } = await fetchApi('/files/upload', {
         method: 'POST',
         body: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
       })
       avatarUrl = data.file.url
     }
@@ -164,11 +162,10 @@ const saveUserInfo = async () => {
     // 清除临时数据
     tempAvatar.value = ''
     avatarFile.value = null
-    
-    notification.success('保存成功')
+    successToast('保存成功')
   } catch (error) {
     console.error('保存失败:', error)
-    notification.error(error.message || '保存失败，请重试')
+    errorToast('保存失败，请稍后重试')
   } finally {
     saving.value = false
   }

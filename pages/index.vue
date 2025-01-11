@@ -106,7 +106,7 @@ const fetchArticles = async (page = 1) => {
         limit: pagination.value.limit,
       },
     })
-
+    console.log('获取文章列表响应:', response)
     if (response.code === 200) {
       articles.value = response.data.articles
       pagination.value = response.data.pagination
@@ -120,12 +120,6 @@ const fetchArticles = async (page = 1) => {
     loadingStates.articles = false
   }
 }
-
-// 初始加载
-onMounted(() => {
-  fetchArticles()
-  fetchAuthor()
-})
 
 // 侧边栏数据
 const tags = computed(() => {
@@ -293,6 +287,9 @@ onMounted(() => {
   }
   setInterval(fetchWeather, 1800000) // 每30分钟更新一次天气
 })
+
+fetchArticles()
+fetchAuthor()
 
 onUnmounted(() => {
   if (timeInterval) clearInterval(timeInterval)

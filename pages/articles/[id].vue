@@ -48,13 +48,13 @@
         <div class="article-actions">
           <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle" :disabled="!user">
             <i :class="article.isLiked ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" />
-            <span>{{ article.likes || 0 }}</span>
+            <span>{{ article.likesCount || 0 }}</span>
             <span class="action-label">点赞</span>
           </button>
           <button class="action-btn" :class="{ 'collected': article.isCollected }" @click="handleCollectArticle"
             :disabled="!user">
             <i :class="article.isCollected ? 'i-carbon-bookmark-filled' : 'i-carbon-bookmark'" />
-            <span>{{ article.collections || 0 }}</span>
+            <span>{{ article.collectionsCount || 0 }}</span>
             <span class="action-label">收藏</span>
           </button>
           <button class="action-btn" :class="{ 'active': showCommentEditor }" @click="toggleCommentEditor">
@@ -132,8 +132,11 @@
                 </div>
                 <div class="comment-content">{{ comment.content }}</div>
                 <div class="comment-actions">
-                  <button class="action-btn" :class="{ 'liked': comment.isLiked }" @click="handleLike(comment._id)">
-                    {{ comment.isLiked ? '❤️' : '🤍' }} {{ comment.likes || 0 }}
+                  <button class="comment-action-btn" :class="{ 'liked': comment.isLiked }"
+                    @click="handleLike(comment._id)" :disabled="!user">
+                    <UIcon :name="comment.isLiked ? 'i-heroicons-hand-thumb-up-solid' : 'i-heroicons-hand-thumb-up'"
+                      class="w-5 h-5" />
+                    <span>{{ comment.likes || 0 }}</span>
                   </button>
                   <button class="action-btn" @click="replyTo(comment._id)">
                     💬 回复
@@ -173,8 +176,11 @@
                     </div>
                     <div class="reply-content">{{ reply.content }}</div>
                     <div class="reply-actions">
-                      <button class="action-btn" :class="{ 'liked': reply.isLiked }" @click="handleLike(reply._id)">
-                        {{ reply.isLiked ? '❤️' : '🤍' }} {{ reply.likes || 0 }}
+                      <button class="comment-action-btn" :class="{ 'liked': reply.isLiked }"
+                        @click="handleLike(reply._id)" :disabled="!user">
+                        <UIcon :name="reply.isLiked ? 'i-heroicons-hand-thumb-up-solid' : 'i-heroicons-hand-thumb-up'"
+                          class="w-5 h-5" />
+                        <span>{{ reply.likes || 0 }}</span>
                       </button>
                       <button class="action-btn" @click="replyTo(comment._id, reply)">
                         💬 回复
@@ -225,8 +231,10 @@ import DOMPurify from 'isomorphic-dompurify'
 import { useUserStore } from '~/stores/user'
 import { storeToRefs } from 'pinia'
 
+const { successToast, warningToast, infoToast, errorToast } = useToastMsg()
 definePageMeta({ layout: 'page' })
 useHead({ title: '文章详情' })
+const toast = useToast()
 
 interface Author {
   _id: string
@@ -253,8 +261,8 @@ interface Article {
   comments: Comment[]
   createdAt: string
   updatedAt: string
-  likes: number
-  collections: number
+  likesCount: number
+  collectionsCount: number
   isLiked: boolean
   isCollected: boolean
 }
@@ -329,13 +337,10 @@ const fetchArticle = async () => {
       message: string
     }>(`/articles/${route.params.id}`)
 
-    if (response.code === 200) {
-      article.value = response.data
-    } else {
-      throw new Error(response.message)
-    }
+    article.value = response?.data
   } catch (err) {
     error.value = err instanceof Error ? err.message : '获取文章失败'
+    console.log(err)
   } finally {
     loading.value = false
   }
@@ -458,37 +463,7 @@ const sortedComments = computed(() => {
   }
 })
 
-// 处理评论回复
-const handleReply = async (data: {
-  commentId: string,
-  content: string,
-  parentCommentId?: string
-}) => {
-  if (!token.value) {
-    navigateTo('/login')
-    return
-  }
-
-  submitting.value = true
-  try {
-    await fetchApi('/comments', {
-      method: 'POST',
-      body: {
-        articleId: article.value?._id,
-        commentId: data.commentId,
-        parentCommentId: data.parentCommentId,
-        content: data.content,
-      }
-    })
-    await fetchArticle()
-  } catch (err) {
-    console.error('回复失败:', err)
-  } finally {
-    submitting.value = false
-  }
-}
-
-// 处理点赞
+// 处理评论点赞
 const handleLike = async (commentId: string) => {
   if (!user.value) {
     navigateTo('/login')
@@ -496,60 +471,112 @@ const handleLike = async (commentId: string) => {
   }
 
   try {
-    await fetchApi(`/comments/${commentId}/like`, {
-      method: 'POST'
+    // 找到要点赞的评论
+    const findComment = (comments: any[]) => {
+      for (const comment of comments) {
+        if (comment._id === commentId) return comment
+        if (comment.replies) {
+          const reply = comment.replies.find((r: any) => r._id === commentId)
+          if (reply) return reply
+        }
+      }
+      return null
+    }
+
+    const comment = findComment(article.value?.comments || [])
+    if (!comment) return
+
+    // 乐观更新
+    comment.isLiked = !comment.isLiked
+    comment.likes = comment.likes + (comment.isLiked ? 1 : -1)
+
+    // 发送请求
+    const response = await fetchApi(`/comments/${commentId}/like`, {
+      method: 'PUT'
     })
-    await fetchArticle()
+
+    // 如果请求失败，回滚状态
+    if (response.code !== 200) {
+      comment.isLiked = !comment.isLiked
+      comment.likes = comment.likes + (comment.isLiked ? 1 : -1)
+    }
   } catch (err) {
     console.error('点赞失败:', err)
+    errorToast('点赞失败')
   }
 }
 
 // 处理文章点赞
 const handleLikeArticle = async () => {
   if (!user.value) {
-    warning('请先登录')
+    warningToast('请先登录')
     navigateTo('/login')
     return
   }
 
   try {
+    // 乐观更新
+    article.value!.isLiked = !article.value!.isLiked
+    article.value!.likesCount = article.value!.likesCount + (article.value!.isLiked ? 1 : -1)
+
     const response = await fetchApi<LikeResponse>(`/articles/${article.value?._id}/like`, {
       method: 'POST'
     })
 
     if (response.code === 200) {
+      // 使用服务器返回的实际数据更新
+      article.value!.likesCount = response.data.likes
+      article.value!.isLiked = response.data.isLiked
+      successToast(response.message)
+    } else {
+      // 如果请求失败，回滚本地状态
       article.value!.isLiked = !article.value!.isLiked
-      article.value!.likes = response.data.likes
-      success(response.message)
+      article.value!.likesCount = article.value!.likesCount + (article.value!.isLiked ? 1 : -1)
+      errorToast(response.message)
     }
   } catch (err) {
+    // 发生错误时回滚本地状态
+    article.value!.isLiked = !article.value!.isLiked
+    article.value!.likesCount = article.value!.likesCount + (article.value!.isLiked ? 1 : -1)
     console.error('点赞失败:', err)
-    showError(err instanceof Error ? err.message : '操作失败，请重试')
+    errorToast(err instanceof Error ? err.message : '点赞失败')
   }
 }
 
 // 处理文章收藏
 const handleCollectArticle = async () => {
   if (!user.value) {
-    warning('请先登录')
+    warningToast('请先登录')
     navigateTo('/login')
     return
   }
 
   try {
+    // 乐观更新
+    article.value!.isCollected = !article.value!.isCollected
+    article.value!.collectionsCount = article.value!.collectionsCount + (article.value!.isCollected ? 1 : -1)
+
     const response = await fetchApi<CollectResponse>(`/articles/${article.value?._id}/collect`, {
       method: 'POST'
     })
 
     if (response.code === 200) {
+      // 使用服务器返回的实际数据更新
+      article.value!.collectionsCount = response.data.collections
+      article.value!.isCollected = response.data.isCollected
+      successToast(response.message)
+    } else {
+      // 如果请求失败，回滚本地状态
       article.value!.isCollected = !article.value!.isCollected
-      article.value!.collections = response.data.collections
-      success(response.message)
+      article.value!.collectionsCount = article.value!.collectionsCount + (article.value!.isCollected ? 1 : -1)
+      errorToast(response.message)
     }
   } catch (err) {
+    // 发生错误时回滚本地状态
+    article.value!.isCollected = !article.value!.isCollected
+    article.value!.collectionsCount = article.value!.collectionsCount + (article.value!.isCollected ? 1 : -1)
     console.error('收藏失败:', err)
-    showError(err instanceof Error ? err.message : '操作失败，请重试')
+    errorToast(err instanceof Error ? err.message : '收藏失败')
   }
 }
 
@@ -561,17 +588,14 @@ const toggleCommentEditor = () => {
     commentsSection.value?.scrollIntoView({ behavior: 'smooth' })
     // 如果未登录，提示登录
     if (!user.value) {
-      warning('请先登录')
+      warningToast('请先登录')
       navigateTo('/login')
       return
     }
   }
 }
 
-// 页面加载时获取数据
-onMounted(() => {
-  fetchArticle()
-})
+fetchArticle()
 
 // 监听路由变化
 watch(() => route.params.id, () => {
@@ -1359,5 +1383,91 @@ const getTagStyle = (tag: string) => {
 
 :root[class~="dark"] .article-actions-wrapper {
   background: #1f2937;
+}
+
+/* 评论操作按钮样式 */
+.comment-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.comment-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #6b7280;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.comment-action-btn:hover:not(:disabled) {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.comment-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.comment-action-btn.liked {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* 暗色模式适配 */
+:root[class~="dark"] .comment-action-btn {
+  background: #1f2937;
+  border-color: #374151;
+  color: #9ca3af;
+}
+
+:root[class~="dark"] .comment-action-btn:hover:not(:disabled) {
+  border-color: #60a5fa;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+}
+
+:root[class~="dark"] .comment-action-btn.liked {
+  border-color: #60a5fa;
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.15);
+}
+
+/* 图标基础样式 */
+.icon {
+  display: inline-flex;
+  width: 1.25em;
+  height: 1.25em;
+  vertical-align: middle;
+}
+
+.comment-action-btn {
+  @apply inline-flex items-center gap-2 px-3 py-1 text-sm border rounded-md transition-all duration-200 hover:border-primary-500 hover:text-primary-500 disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.comment-action-btn.liked {
+  @apply border-primary-500 text-primary-500 bg-primary-50 dark:bg-primary-950;
+}
+
+/* 暗色模式 */
+:root[class~="dark"] .comment-action-btn {
+  @apply bg-gray-800 border-gray-700 text-gray-400;
+}
+
+:root[class~="dark"] .comment-action-btn:hover:not(:disabled) {
+  @apply border-primary-400 text-primary-400;
+}
+
+:root[class~="dark"] .comment-action-btn.liked {
+  @apply border-primary-400 text-primary-400;
 }
 </style>
