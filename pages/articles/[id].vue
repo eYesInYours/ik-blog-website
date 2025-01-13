@@ -48,13 +48,13 @@
         <div class="article-actions">
           <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle" :disabled="!user">
             <i :class="article.isLiked ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" />
-            <span>{{ article.likesCount || 0 }}</span>
+            <span>{{ article.likes || 0 }}</span>
             <span class="action-label">点赞</span>
           </button>
           <button class="action-btn" :class="{ 'collected': article.isCollected }" @click="handleCollectArticle"
             :disabled="!user">
             <i :class="article.isCollected ? 'i-carbon-bookmark-filled' : 'i-carbon-bookmark'" />
-            <span>{{ article.collectionsCount || 0 }}</span>
+            <span>{{ article.collections || 0 }}</span>
             <span class="action-label">收藏</span>
           </button>
           <button class="action-btn" :class="{ 'active': showCommentEditor }" @click="toggleCommentEditor">
@@ -261,8 +261,8 @@ interface Article {
   comments: Comment[]
   createdAt: string
   updatedAt: string
-  likesCount: number
-  collectionsCount: number
+  likes: number
+  collections: number
   isLiked: boolean
   isCollected: boolean
 }
@@ -517,7 +517,7 @@ const handleLikeArticle = async () => {
   try {
     // 乐观更新
     article.value!.isLiked = !article.value!.isLiked
-    article.value!.likesCount = article.value!.likesCount + (article.value!.isLiked ? 1 : -1)
+    article.value!.likes = article.value!.likes + (article.value!.isLiked ? 1 : -1)
 
     const response = await fetchApi<LikeResponse>(`/articles/${article.value?._id}/like`, {
       method: 'POST'
@@ -525,19 +525,19 @@ const handleLikeArticle = async () => {
 
     if (response.code === 200) {
       // 使用服务器返回的实际数据更新
-      article.value!.likesCount = response.data.likes
+      article.value!.likes = response.data.likes
       article.value!.isLiked = response.data.isLiked
       successToast(response.message)
     } else {
       // 如果请求失败，回滚本地状态
       article.value!.isLiked = !article.value!.isLiked
-      article.value!.likesCount = article.value!.likesCount + (article.value!.isLiked ? 1 : -1)
+      article.value!.likes = article.value!.likes + (article.value!.isLiked ? 1 : -1)
       errorToast(response.message)
     }
   } catch (err) {
     // 发生错误时回滚本地状态
     article.value!.isLiked = !article.value!.isLiked
-    article.value!.likesCount = article.value!.likesCount + (article.value!.isLiked ? 1 : -1)
+    article.value!.likes = article.value!.likes + (article.value!.isLiked ? 1 : -1)
     console.error('点赞失败:', err)
     errorToast(err instanceof Error ? err.message : '点赞失败')
   }
@@ -554,7 +554,7 @@ const handleCollectArticle = async () => {
   try {
     // 乐观更新
     article.value!.isCollected = !article.value!.isCollected
-    article.value!.collectionsCount = article.value!.collectionsCount + (article.value!.isCollected ? 1 : -1)
+    article.value!.collections = article.value!.collections + (article.value!.isCollected ? 1 : -1)
 
     const response = await fetchApi<CollectResponse>(`/articles/${article.value?._id}/collect`, {
       method: 'POST'
@@ -562,19 +562,19 @@ const handleCollectArticle = async () => {
 
     if (response.code === 200) {
       // 使用服务器返回的实际数据更新
-      article.value!.collectionsCount = response.data.collections
+      article.value!.collections = response.data.collections
       article.value!.isCollected = response.data.isCollected
       successToast(response.message)
     } else {
       // 如果请求失败，回滚本地状态
       article.value!.isCollected = !article.value!.isCollected
-      article.value!.collectionsCount = article.value!.collectionsCount + (article.value!.isCollected ? 1 : -1)
+      article.value!.collections = article.value!.collections + (article.value!.isCollected ? 1 : -1)
       errorToast(response.message)
     }
   } catch (err) {
     // 发生错误时回滚本地状态
     article.value!.isCollected = !article.value!.isCollected
-    article.value!.collectionsCount = article.value!.collectionsCount + (article.value!.isCollected ? 1 : -1)
+    article.value!.collections = article.value!.collections + (article.value!.isCollected ? 1 : -1)
     console.error('收藏失败:', err)
     errorToast(err instanceof Error ? err.message : '收藏失败')
   }

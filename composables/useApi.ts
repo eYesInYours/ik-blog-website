@@ -2,7 +2,6 @@ import type { UseFetchOptions } from 'nuxt/app'
 
 export const useApi = () => {
   const config = useRuntimeConfig()
-  const { showError } = useError()
   const userStore = useUserStore()
   const { errorToast } = useToastMsg()
 
@@ -30,16 +29,10 @@ export const useApi = () => {
               navigateTo('/login')
               break
             case 403:
-              showError({
-                statusCode: 403,
-                message: '无权访问'
-              })
+              errorToast('无权访问')
               break
             case 404:
-              showError({
-                statusCode: 404,
-                message: '资源不存在'
-              })
+              errorToast('资源不存在')
               break
           }
 

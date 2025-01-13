@@ -13,11 +13,14 @@ const fetchNotifications = async () => {
   loading.value = true
   try {
     const res = await fetchApi('/notifications', {
+      method: 'GET',
       params: {
-        isRead: filterUnread.value ? false : undefined
+        isRead: filterUnread.value ? 'false' : undefined
       }
     })
-    notifications.value = res.data.notifications
+    if (res.code === 200) {
+      notifications.value = res.data.notifications
+    }
   } catch (err) {
     console.error('获取通知失败:', err)
   } finally {
@@ -28,13 +31,15 @@ const fetchNotifications = async () => {
 // 标记通知为已读
 const markAsRead = async (id: string) => {
   try {
-    await fetchApi(`/notifications/${id}/mark-read`, {
-      method: 'POST'
+    const res = await fetchApi(`/notifications/${id}/read`, {
+      method: 'PUT'
     })
-    // 更新本地状态
-    const notification = notifications.value.find(n => n._id === id)
-    if (notification) {
-      notification.isRead = true
+    if (res.code === 200) {
+      // 更新本地状态
+      const notification = notifications.value.find(n => n._id === id)
+      if (notification) {
+        notification.isRead = true
+      }
     }
   } catch (err) {
     console.error('标记已读失败:', err)
@@ -44,11 +49,13 @@ const markAsRead = async (id: string) => {
 // 标记所有为已读
 const markAllAsRead = async () => {
   try {
-    await fetchApi('/notifications/mark-all-read', {
-      method: 'POST'
+    const res = await fetchApi('/notifications/read-all', {
+      method: 'PUT'
     })
-    // 更新本地状态
-    notifications.value.forEach(n => n.isRead = true)
+    if (res.code === 200) {
+      // 更新本地状态
+      notifications.value.forEach(n => n.isRead = true)
+    }
   } catch (err) {
     console.error('标记全部已读失败:', err)
   }
@@ -56,6 +63,18 @@ const markAllAsRead = async () => {
 
 // 监听筛选变化
 watch(filterUnread, fetchNotifications)
+
+// 根据notification.action返回提示
+const getActionText = (action: string) => {
+  const actionMap = {
+    'article_like': '赞了你的文章',
+    'article_collect': '收藏了你的文章',
+    'article_comment': '评论了你的文章',
+    'comment_like': '赞了你的评论',
+    'comment_reply': '回复了你的评论'
+  }
+  return actionMap[action] || '与你互动'
+}
 
 // 格式化时间
 const formatDate = (date: string) => {
@@ -65,6 +84,10 @@ const formatDate = (date: string) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+function toLink(id: string) {
+  navigateTo(`/articles/${id}`)
 }
 
 // 初始化
@@ -78,28 +101,18 @@ fetchNotifications()
       <div class="sidebar-header">
         <h1 class="text-xl font-bold">通知中心</h1>
       </div>
-      
+
       <nav class="sidebar-nav">
-        <UButton
-          block
-          :variant="!filterUnread ? 'solid' : 'ghost'"
-          color="primary"
-          class="justify-start"
-          @click="filterUnread = false"
-        >
+        <UButton block :variant="!filterUnread ? 'solid' : 'ghost'" color="primary" class="justify-start"
+          @click="filterUnread = false">
           <template #leading>
             <UIcon name="i-carbon-notification" />
           </template>
           全部通知
         </UButton>
 
-        <UButton
-          block
-          :variant="filterUnread ? 'solid' : 'ghost'"
-          color="primary"
-          class="justify-start"
-          @click="filterUnread = true"
-        >
+        <UButton block :variant="filterUnread ? 'solid' : 'ghost'" color="primary" class="justify-start"
+          @click="filterUnread = true">
           <template #leading>
             <UIcon name="i-carbon-notification-new" />
           </template>
@@ -108,13 +121,8 @@ fetchNotifications()
       </nav>
 
       <div class="sidebar-footer">
-        <UButton
-          block
-          variant="ghost"
-          color="gray"
-          @click="markAllAsRead"
-          :disabled="!notifications.some(n => !n.isRead)"
-        >
+        <UButton block variant="ghost" color="gray" @click="markAllAsRead"
+          :disabled="!notifications.some(n => !n.isRead)">
           全部标为已读
         </UButton>
       </div>
@@ -137,71 +145,70 @@ fetchNotifications()
       <!-- 通知列表 -->
       <template v-else>
         <div class="notifications-list">
-          <UCard
-            v-for="notification in notifications"
-            :key="notification._id"
-            :ui="{
-              base: 'transition-all duration-200 hover:shadow-md w-full',
-              body: { padding: 'p-4' }
-            }"
-            :class="[
+          <UCard v-for="notification in notifications" :key="notification._id" :ui="{
+            base: 'transition-all duration-200 hover:shadow-md w-full',
+            body: { padding: 'p-4' }
+          }" :class="[
               'notification-card',
               !notification.isRead && 'unread'
-            ]"
-            @click="!notification.isRead && markAsRead(notification._id)"
-          >
+            ]">
             <div class="notification-content">
-              <UAvatar
-                :src="notification.sender.avatar"
-                :alt="notification.sender.username"
-                size="lg"
-              />
+              <UAvatar :src="notification.sender.author.avatar" :alt="notification.sender.author.username" size="lg" />
               <div class="notification-body">
                 <div class="notification-header">
-                  <span class="username">{{ notification.sender.username }}</span>
-                  <time class="timestamp">{{ formatDate(notification.createdAt) }}</time>
+                  <div class="header-left">
+                    <span class="username">{{ notification.sender.author.username }}</span>
+                  </div>
+                  <div class="header-right">
+                    <time class="timestamp">{{ formatDate(notification.createdAt) }}</time>
+                    <UButton v-if="!notification.isRead" size="xs" color="primary" variant="soft"
+                      icon="i-carbon-checkmark" class="mark-read-btn" @click.stop="markAsRead(notification._id)">
+                      标为已读
+                    </UButton>
+                  </div>
                 </div>
-                <p class="message">{{ notification.action }}</p>
+                <p class="message">{{ getActionText(notification.action) }}</p>
 
-                <template v-if="notification.type === 'comment_reply'">
+                <template
+                  v-if="notification.action === 'comment_reply' || notification.action === 'comment_like' || notification.action === 'article_comment'">
                   <div class="comment-context">
                     <!-- 原始评论 -->
                     <div class="original-comment">
-                      <div class="comment-header">
-                        <UAvatar
-                          :src="notification.target.parentComment.author.avatar"
-                          :alt="notification.target.parentComment.author.username"
-                          size="sm"
-                        />
-                        <span class="username">{{ notification.target.parentComment.author.username }}</span>
-                      </div>
-                      <p class="comment-content">{{ notification.target.parentComment.content }}</p>
+                      <template v-if="notification.action !== 'article_comment'">
+                        <div class="comment-header">
+                          <UAvatar :src="notification.recipient.author.avatar"
+                            :alt="notification.recipient.author.username" size="sm" />
+                          <span class="username">{{ notification.recipient.author.username }}</span>
+                        </div>
+                        <p class="comment-content">{{ notification.recipient.content }}</p>
+                      </template>
+                      <template v-else>
+                        <h4 class="article-title">《{{ notification.recipient.content }}》</h4>
+                      </template>
                     </div>
 
                     <!-- 回复评论 -->
-                    <div class="reply-comment">
+                    <div class="reply-comment" v-if="notification.sender.content">
                       <div class="reply-indicator">
                         <div class="reply-line"></div>
                         <UIcon name="i-carbon-arrow-right" class="reply-arrow" />
                       </div>
                       <div class="current-comment">
                         <div class="comment-header">
-                          <UAvatar
-                            :src="notification.target.author.avatar"
-                            :alt="notification.target.author.username"
-                            size="sm"
-                          />
-                          <span class="username">{{ notification.target.author.username }}</span>
+                          <UAvatar :src="notification.sender.author.avatar" :alt="notification.sender.author.username"
+                            size="sm" />
+                          <span class="username">{{ notification.sender.author.username }}</span>
                         </div>
-                        <p class="comment-content">{{ notification.target.content }}</p>
+                        <p class="comment-content">{{ notification.sender.content }}</p>
                       </div>
                     </div>
                   </div>
                 </template>
 
-                <template v-else-if="notification.type === 'article_like' && notification.target">
-                  <div class="article-context">
-                    <h4 class="article-title">{{ notification.target.title }}</h4>
+                <template
+                  v-else-if="notification.action === 'article_like' || notification.action === 'article_collect'">
+                  <div @click="toLink(notification.recipient._id)" class="article-context">
+                    <h4 class="article-title">《{{ notification.recipient.content }}》</h4>
                   </div>
                 </template>
               </div>
@@ -266,7 +273,15 @@ fetchNotifications()
 }
 
 .notification-header {
-  @apply flex justify-between items-center mb-1;
+  @apply flex justify-between items-center mb-3;
+}
+
+.header-left {
+  @apply flex items-center gap-2;
+}
+
+.header-right {
+  @apply flex items-center gap-3;
 }
 
 .username {
@@ -351,5 +366,14 @@ fetchNotifications()
 
 .article-title {
   @apply text-sm font-medium text-gray-900 dark:text-gray-100;
+}
+
+.mark-read-btn {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.notification-card:hover .mark-read-btn {
+  opacity: 1;
 }
 </style>
