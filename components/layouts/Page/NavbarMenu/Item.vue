@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { AwesomeLayoutPageNavbarMenu, AwesomeLayoutPageNavbarMenuDropdownItem } from '~/types'
+const { $request } = useNuxtApp()
 
 const { parseMenuRoute, parseMenuTitle } = useNavbarParser()
 const notificationStore = useNotificationStore()
+const userStore = useUserStore()
 
 const props = defineProps({
   menu: {
@@ -23,6 +25,54 @@ const isNotificationIcon = computed(() => {
     props.menu.icon?.includes('notification') &&
     typeof parseMenuRoute(props.menu.to) === 'object' &&
     parseMenuRoute(props.menu.to).name === 'notifications'
+})
+
+// 检查是否应该显示通知功能
+const shouldShowNotification = computed(() => {
+  return isNotificationIcon.value && userStore.token
+})
+
+// 获取未读通知数
+const fetchUnreadCount = async () => {
+  // 只在用户已登录且有token时获取未读数
+  if (!shouldShowNotification.value) {
+    return
+  }
+
+  try {
+    const { data, error } = await $request.get('/notifications/unread-count')
+    if (error.value) throw error.value
+    if (data.value?.code === 200) {
+      notificationStore.setUnreadCount(data.value.data.count)
+    }
+  } catch (err) {
+    console.error('获取未读通知数失败:', err)
+  }
+}
+
+// 监听登录状态变化
+watch(() => userStore.isLoggedIn, (newVal) => {
+  if (newVal) {
+    fetchUnreadCount()
+  } else {
+    // 用户登出时清空未读数
+    notificationStore.clearUnreadCount()
+  }
+})
+
+// 定时刷新未读数（每分钟）
+let refreshInterval: NodeJS.Timer
+onMounted(() => {
+  if (shouldShowNotification.value) {
+    fetchUnreadCount()
+    refreshInterval = setInterval(fetchUnreadCount, 60000)
+  }
+})
+
+onUnmounted(() => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+  }
 })
 </script>
 
@@ -58,7 +108,7 @@ const isNotificationIcon = computed(() => {
       }" :title="parseMenuTitle(menu.title)">
       <UIcon :name="menu.icon" class="text-xl" />
       <!-- 通知徽标 -->
-      <span v-if="isNotificationIcon && notificationStore.unreadCount > 0"
+      <span v-if="shouldShowNotification && notificationStore.unreadCount > 0"
         class="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-xs text-white bg-red-500 rounded-full px-1">
         {{ notificationStore.unreadCount > 99 ? '99+' : notificationStore.unreadCount }}
       </span>

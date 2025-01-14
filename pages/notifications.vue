@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { $request } from '~/plugins/request'
+
 const { fetchApi } = useApi()
 const loading = ref(false)
 const notifications = ref([])
@@ -13,14 +15,8 @@ const fetchNotifications = async () => {
   if (loading.value) return
   loading.value = true
   try {
-    const { data, error } = await useFetch('/notifications', {
-      baseURL: config.public.apiBase,
-      params: {
-        isRead: filterUnread.value ? 'false' : undefined
-      },
-      headers: {
-        Authorization: `Bearer ${userStore.token}`
-      }
+    const { data, error } = await $request.get('/notifications', {
+      isRead: filterUnread.value ? 'false' : undefined
     })
     if (error.value) throw error.value
     if (data.value?.code === 200) {
@@ -36,13 +32,7 @@ const fetchNotifications = async () => {
 // 标记通知为已读
 const markAsRead = async (id: string) => {
   try {
-    const { data, error } = await useFetch(`/notifications/${id}/read`, {
-      baseURL: config.public.apiBase,
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${userStore.token}`
-      }
-    })
+    const { data, error } = await $request.put(`/notifications/${id}/read`)
     if (error.value) throw error.value
     if (data.value?.code === 200) {
       const notification = notifications.value.find(n => n._id === id)
@@ -59,13 +49,7 @@ const markAsRead = async (id: string) => {
 // 标记所有为已读
 const markAllAsRead = async () => {
   try {
-    const { data, error } = await useFetch('/notifications/read-all', {
-      baseURL: config.public.apiBase,
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${userStore.token}`
-      }
-    })
+    const { data, error } = await $request.put('/notifications/read-all')
     if (error.value) throw error.value
     if (data.value?.code === 200) {
       notifications.value.forEach(n => n.isRead = true)

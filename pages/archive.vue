@@ -34,7 +34,7 @@ interface Article {
 definePageMeta({ layout: 'page' })
 useHead({ title: '文章归档' })
 
-const { fetchApi } = useApi()
+const { $request } = useNuxtApp()
 
 // 类型定义
 interface ArchiveData {
@@ -79,14 +79,11 @@ const archiveData = ref<ArchiveData>({
 const fetchArchiveData = async () => {
   loading.value = true
   try {
-    // 模拟 API 调用延迟
-    const res = await fetchApi('/articles/archives', {
-      params: {
+    const {data,error} = await $request.get('/articles/archives', {
         type: activeTab.value
-      }
     })
-    archiveData.value = res.data
-
+    archiveData.value = data.value.data
+    console.log(archiveData.value)
   } catch (error) {
     console.error('获取归档数据失败:', error)
   } finally {

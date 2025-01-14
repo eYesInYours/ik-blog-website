@@ -231,6 +231,7 @@ import DOMPurify from 'isomorphic-dompurify'
 import { useUserStore } from '~/stores/user'
 import { storeToRefs } from 'pinia'
 
+const { $request } = useNuxtApp()
 const { successToast, warningToast, infoToast, errorToast } = useToastMsg()
 definePageMeta({ layout: 'page' })
 useHead({ title: '文章详情' })
@@ -286,7 +287,6 @@ interface CollectResponse {
 }
 
 const route = useRoute()
-const { fetchApi } = useApi()
 const userStore = useUserStore()
 const { userInfo: user, token } = storeToRefs(userStore)
 
@@ -327,20 +327,16 @@ const sanitizedContent = computed(() => {
 
 // 获取文章数据
 const fetchArticle = async () => {
-  loading.value = true
-  error.value = null
-
   try {
-    const response = await fetchApi<{
-      code: number
-      data: Article
-      message: string
-    }>(`/articles/${route.params.id}`)
-
-    article.value = response?.data
+    loading.value = true
+    const { data, error } = await $request.get(`/articles/${route.params.id}`)
+    if (error.value) throw error.value
+    if (data.value?.code === 200) {
+      article.value = data.value.data
+    }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '获取文章失败'
-    console.log(err)
+    console.error('获取文章详情失败:', err)
+    error.value = err.message || '获取文章详情失败'
   } finally {
     loading.value = false
   }
@@ -374,12 +370,9 @@ async function submitComment() {
 
   submitting.value = true
   try {
-    await fetchApi('/comments', {
-      method: 'POST',
-      body: {
-        articleId: article.value?._id,
-        content: commentContent.value
-      }
+    await $request.post('/comments', {
+      articleId: article.value?._id,
+      content: commentContent.value
     })
     await fetchComments()
     resetEditor()
@@ -411,11 +404,7 @@ function cancelReply() {
 }
 
 async function fetchComments() {
-  const response = await fetchApi<{
-    code: number
-    data: Comment[]
-    message: string
-  }>(`/comments/article/${route.params.id}`)
+  const response = await $request.get(`/comments/article/${route.params.id}`)
   if (response.code === 200 && article.value) {
     article.value.comments = response.data
   }
@@ -427,13 +416,10 @@ async function submitReply(comment: Comment, replyTo?: Comment) {
 
   submitting.value = true
   try {
-    await fetchApi('/comments', {
-      method: 'POST',
-      body: {
-        articleId: article.value?._id,
-        parentCommentId: comment._id,
-        content: replyContent.value,
-      }
+    await $request.post('/comments', {
+      articleId: article.value?._id,
+      parentCommentId: comment._id,
+      content: replyContent.value,
     })
     // 只获取评论列表
     await fetchComments()
@@ -491,9 +477,7 @@ const handleLike = async (commentId: string) => {
     comment.likes = comment.likes + (comment.isLiked ? 1 : -1)
 
     // 发送请求
-    const response = await fetchApi(`/comments/${commentId}/like`, {
-      method: 'PUT'
-    })
+    const response = await $request.put(`/comments/${commentId}/like`)
 
     // 如果请求失败，回滚状态
     if (response.code !== 200) {
@@ -519,9 +503,7 @@ const handleLikeArticle = async () => {
     article.value!.isLiked = !article.value!.isLiked
     article.value!.likes = article.value!.likes + (article.value!.isLiked ? 1 : -1)
 
-    const response = await fetchApi<LikeResponse>(`/articles/${article.value?._id}/like`, {
-      method: 'POST'
-    })
+    const response = await $request.post<LikeResponse>(`/articles/${article.value?._id}/like`)
 
     if (response.code === 200) {
       // 使用服务器返回的实际数据更新
@@ -556,9 +538,7 @@ const handleCollectArticle = async () => {
     article.value!.isCollected = !article.value!.isCollected
     article.value!.collections = article.value!.collections + (article.value!.isCollected ? 1 : -1)
 
-    const response = await fetchApi<CollectResponse>(`/articles/${article.value?._id}/collect`, {
-      method: 'POST'
-    })
+    const response = await $request.post<CollectResponse>(`/articles/${article.value?._id}/collect`)
 
     if (response.code === 200) {
       // 使用服务器返回的实际数据更新

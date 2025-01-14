@@ -1,39 +1,33 @@
 import type { LoginCredentials, RegisterCredentials, UserInfo, AuthResponse, ApiResponse } from '~/types'
 import { logger } from '~/utils/logger'
-import { useUserStore } from '~/stores/user'
 
 export const useAuth = () => {
-  const { fetchApi } = useApi()
   const userStore = useUserStore()
+  const { $request } = useNuxtApp()
+  const { successToast } = useToastMsg()
 
   // 登录
-  const login = async (credentials: LoginCredentials) => {
+  const login = async (credentials: { email: string; password: string }) => {
     try {
-      const response = await fetchApi<ApiResponse<AuthResponse>>('/auth/login', {
-        method: 'POST',
-        body: credentials,
-      })
-
-      if (response.code === 200 && response.data) {
-        userStore.setLoginState(response.data.token, response.data.user)
-        logger.info('用户登录成功', userStore.getUserInfo)
+      const { data, error } = await $request.post('/auth/login', credentials)
+      if (error.value) throw error.value
+      
+      if (data.value?.code === 200) {
+        userStore.setLoginState(data.value.data.token, data.value.data.user)
+        successToast('登录成功')
         return true
       }
-
-      throw new Error(response.message)
-    } catch (error) {
-      logger.error('登录失败', error)
       return false
+    } catch (err) {
+      console.error('登录失败:', err)
+      throw err
     }
   }
 
   // 注册
   const register = async (credentials: RegisterCredentials) => {
     try {
-      const response = await fetchApi<ApiResponse>('/auth/register', {
-        method: 'POST',
-        body: credentials,
-      })
+      const response = await request.post<ApiResponse>('/auth/register', credentials)
 
       if (response.code === 200) {
         return true
@@ -47,24 +41,14 @@ export const useAuth = () => {
   }
 
   // 登出
-  const logout = async () => {
-    try {
-      const response = await fetchApi<ApiResponse>('/auth/logout', {
-        method: 'POST',
-      })
-
-      if (response.code === 200) {
-        userStore.clearLoginState()
-      }
-    } catch (error) {
-      logger.error('登出失败', error)
-    }
+  const logout = () => {
+    userStore.logout()
   }
 
   // 获取用户信息
   const fetchUserInfo = async () => {
     try {
-      const response = await fetchApi<ApiResponse<UserInfo>>('/auth/user')
+      const response = await request.get<ApiResponse<UserInfo>>('/auth/user')
       if (response.code === 200 && response.data) {
         userStore.updateUserInfo(response.data)
         return response.data
@@ -87,7 +71,6 @@ export const useAuth = () => {
   })
 
   return {
-    isLoggedIn: computed(() => userStore.getIsLoggedIn),
     userInfo: computed(() => userStore.getUserInfo),
     token: computed(() => userStore.getToken),
     login,

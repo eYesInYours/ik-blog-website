@@ -55,8 +55,8 @@ export const useUserStore = defineStore('user', {
       if (token) {
         this.token = token
         try {
-          const { fetchApi } = useApi()
-          const response = await fetchApi<ApiResponse<UserInfo>>('/users/info')
+          const { $request } = useNuxtApp()
+          const response = await $request.get<ApiResponse<UserInfo>>('/users/info')
           if (response.code === 200 && response.data) {
             this.setUserInfo(response.data)
           }

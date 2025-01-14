@@ -1,11 +1,9 @@
 <script lang="ts" setup>
-import request from '~/utils/request'
-
 const { awesome } = useAppConfig()
+const { $request } = useNuxtApp()
 definePageMeta({ layout: 'page' })
 useHead({ titleTemplate: '', title: awesome?.name || '我的技术博客' })
 
-const { fetchApi } = useApi()
 const notificationStore = useNotificationStore()
 const route = useRoute()
 
@@ -88,7 +86,7 @@ const fetchAuthor = async () => {
   try {
     loadingStates.author = true
     errors.author = null
-    const { data, error } = await request.get('/users/author')
+    const { data, error } = await $request.get('/users/author')
     if (error.value) throw error.value
     if (data.value?.code === 200) {
       author.value = data.value.data
@@ -106,7 +104,7 @@ const fetchArticles = async (page = 1) => {
   try {
     loadingStates.articles = true
     errors.articles = null
-    const { data, error } = await request.get('/articles', {
+    const { data, error } = await $request.get('/articles', {
       page,
       limit: pagination.value.limit
     })
@@ -290,26 +288,7 @@ onMounted(() => {
   setInterval(fetchWeather, 1800000) // 每30分钟更新一次天气
 })
 
-// 获取未读通知数
-const fetchUnreadCount = async () => {
-  try {
-    const { data, error } = await request.get('/notifications/unread-count')
-    if (error.value) throw error.value
-    if (data.value?.code === 200) {
-      notificationStore.setUnreadCount(data.value.data.count)
-    }
-  } catch (err) {
-    console.error('获取未读通知数失败:', err)
-  }
-}
-
-// 监听路由变化时更新未读数
-watch(() => route.fullPath, () => {
-  fetchUnreadCount()
-})
-
 // 初始化
-fetchUnreadCount()
 fetchAuthor()
 fetchArticles()
 fetchWeather()
