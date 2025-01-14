@@ -1,59 +1,23 @@
 import { defineStore } from 'pinia'
 
-export interface Notification {
-  id: number
-  type: 'success' | 'error' | 'info' | 'warning'
-  message: string
-  duration?: number
-}
-
 export const useNotificationStore = defineStore('notification', {
   state: () => ({
-    notifications: [] as Notification[],
-    counter: 0
+    unreadCount: 0
   }),
 
   actions: {
-    add(notification: Omit<Notification, 'id'>) {
-      const id = ++this.counter
-      const duration = notification.duration ?? 3000 // 默认3秒
-
-      this.notifications.push({
-        ...notification,
-        id
-      })
-
-      if (duration > 0) {
-        setTimeout(() => {
-          this.remove(id)
-        }, duration)
-      }
-
-      return id
+    setUnreadCount(count: number) {
+      this.unreadCount = count
     },
 
-    remove(id: number) {
-      const index = this.notifications.findIndex(n => n.id === id)
-      if (index > -1) {
-        this.notifications.splice(index, 1)
+    decrementUnreadCount() {
+      if (this.unreadCount > 0) {
+        this.unreadCount--
       }
     },
 
-    // 快捷方法
-    success(message: string, duration?: number) {
-      return this.add({ type: 'success', message, duration })
-    },
-
-    error(message: string, duration?: number) {
-      return this.add({ type: 'error', message, duration })
-    },
-
-    info(message: string, duration?: number) {
-      return this.add({ type: 'info', message, duration })
-    },
-
-    warning(message: string, duration?: number) {
-      return this.add({ type: 'warning', message, duration })
+    clearUnreadCount() {
+      this.unreadCount = 0
     }
   }
 }) 

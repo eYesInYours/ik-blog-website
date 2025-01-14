@@ -72,13 +72,13 @@ const showDrawer = ref(false)
             <Icon name="la:language" />
           </AwesomeLink> -->
           <LayoutPageNavbarDropdownThemeSwitcher />
-          <AwesomeLink
+          <!-- <AwesomeLink
             v-if="awesome?.project?.links?.github"
             class="dark:text-gray-400 text-gray-600"
             :href="awesome?.project?.links?.github"
           >
             <Icon name="mdi:github-face" />
-          </AwesomeLink>
+          </AwesomeLink> -->
         </div>
       </div>
       <!-- drawer:btn -->

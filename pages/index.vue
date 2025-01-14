@@ -1,9 +1,13 @@
 <script lang="ts" setup>
+import request from '~/utils/request'
+
 const { awesome } = useAppConfig()
 definePageMeta({ layout: 'page' })
 useHead({ titleTemplate: '', title: awesome?.name || '我的技术博客' })
 
 const { fetchApi } = useApi()
+const notificationStore = useNotificationStore()
+const route = useRoute()
 
 interface Author {
   _id: string
@@ -77,15 +81,17 @@ const isLoading = computed(() => {
 
 // 作者信息
 const author = ref<Author | null>(null)
+const config = useRuntimeConfig()
+
+// 获取作者信息
 const fetchAuthor = async () => {
   try {
     loadingStates.author = true
     errors.author = null
-    const response = await fetchApi('/users/author')
-    if (response.code === 200) {
-      author.value = response.data
-    } else {
-      throw new Error(response.message || '获取作者信息失败')
+    const { data, error } = await request.get('/users/author')
+    if (error.value) throw error.value
+    if (data.value?.code === 200) {
+      author.value = data.value.data
     }
   } catch (error) {
     console.error('获取作者信息失败:', error)
@@ -100,18 +106,14 @@ const fetchArticles = async (page = 1) => {
   try {
     loadingStates.articles = true
     errors.articles = null
-    const response = await fetchApi<ArticleResponse>('/articles', {
-      params: {
-        page,
-        limit: pagination.value.limit,
-      },
+    const { data, error } = await request.get('/articles', {
+      page,
+      limit: pagination.value.limit
     })
-    console.log('获取文章列表响应:', response)
-    if (response.code === 200) {
-      articles.value = response.data.articles
-      pagination.value = response.data.pagination
-    } else {
-      throw new Error(response.message || '获取文章列表失败')
+    if (error.value) throw error.value
+    if (data.value?.code === 200) {
+      articles.value = data.value.data.articles
+      pagination.value = data.value.data.pagination
     }
   } catch (error) {
     console.error('获取文章列表失败:', error)
@@ -215,7 +217,7 @@ const fetchWeather = async () => {
       loadingStates.weather = true
     }
     errors.weather = null
-    
+
     // 1. 先获取地理位置
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject)
@@ -288,8 +290,29 @@ onMounted(() => {
   setInterval(fetchWeather, 1800000) // 每30分钟更新一次天气
 })
 
-fetchArticles()
+// 获取未读通知数
+const fetchUnreadCount = async () => {
+  try {
+    const { data, error } = await request.get('/notifications/unread-count')
+    if (error.value) throw error.value
+    if (data.value?.code === 200) {
+      notificationStore.setUnreadCount(data.value.data.count)
+    }
+  } catch (err) {
+    console.error('获取未读通知数失败:', err)
+  }
+}
+
+// 监听路由变化时更新未读数
+watch(() => route.fullPath, () => {
+  fetchUnreadCount()
+})
+
+// 初始化
+fetchUnreadCount()
 fetchAuthor()
+fetchArticles()
+fetchWeather()
 
 onUnmounted(() => {
   if (timeInterval) clearInterval(timeInterval)
@@ -397,7 +420,8 @@ const getTagStyle = (tag: string) => {
 
         <!-- 骨架屏 -->
         <template v-if="isLoading">
-          <div v-for="n in 5" :key="n" class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
+          <div v-for="n in 5" :key="n"
+            class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
             <div class="flex p-3 gap-3">
               <div class="flex-1">
                 <div class="h-7 bg-gray-200 rounded w-3/4 mb-2"></div>
@@ -422,8 +446,8 @@ const getTagStyle = (tag: string) => {
           <div class="text-center py-8 text-gray-500">
             <Icon name="carbon:warning" class="text-4xl mb-2" />
             <p>{{ errors.articles }}</p>
-            <button @click="fetchArticles" 
-                    class="mt-4 px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
+            <button @click="fetchArticles"
+              class="mt-4 px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
               重试
             </button>
           </div>
@@ -431,12 +455,9 @@ const getTagStyle = (tag: string) => {
 
         <!-- 文章列表 -->
         <template v-else>
-          <article
-            v-for="article in filteredArticles"
-            :key="article._id"
+          <article v-for="article in filteredArticles" :key="article._id"
             class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-            @click="handleClick(article._id)"
-          >
+            @click="handleClick(article._id)">
             <div class="flex p-3 gap-3">
               <div class="flex-1">
                 <h3 class="article-title">
@@ -450,11 +471,7 @@ const getTagStyle = (tag: string) => {
                   <span class="mx-2">·</span>
                   <span>{{ article.author.username }}</span>
                   <div class="ml-4 flex gap-2">
-                    <span
-                      v-for="tag in article.tags"
-                      :key="tag"
-                      class="px-2 py-0.5 bg-gray-100 rounded-full text-xs"
-                    >
+                    <span v-for="tag in article.tags" :key="tag" class="px-2 py-0.5 bg-gray-100 rounded-full text-xs">
                       {{ tag }}
                     </span>
                   </div>
@@ -462,15 +479,9 @@ const getTagStyle = (tag: string) => {
               </div>
 
               <!-- 右侧封面图 -->
-              <div
-                v-if="article.cover"
-                class="w-32 h-24 flex-shrink-0 overflow-hidden rounded"
-              >
-                <img
-                  :src="article.cover"
-                  :alt="article.title"
-                  class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
+              <div v-if="article.cover" class="w-32 h-24 flex-shrink-0 overflow-hidden rounded">
+                <img :src="article.cover" :alt="article.title"
+                  class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
               </div>
             </div>
           </article>
@@ -479,18 +490,12 @@ const getTagStyle = (tag: string) => {
 
       <!-- 分页控件 -->
       <div v-if="!isLoading" class="flex justify-center gap-2 mt-8">
-        <button
-          @click="currentPage--"
-          :disabled="currentPage === 1"
-          class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50"
-        >
+        <button @click="currentPage--" :disabled="currentPage === 1"
+          class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50">
           上一页
         </button>
-        <button
-          @click="currentPage++"
-          :disabled="currentPage >= pagination.totalPages"
-          class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50"
-        >
+        <button @click="currentPage++" :disabled="currentPage >= pagination.totalPages"
+          class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50">
           下一页
         </button>
       </div>
@@ -524,8 +529,7 @@ const getTagStyle = (tag: string) => {
           <div class="text-center py-4 text-gray-500">
             <Icon name="carbon:warning" class="text-4xl mb-2" />
             <p>{{ errors.author }}</p>
-            <button @click="fetchAuthor" 
-                    class="mt-4 px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
+            <button @click="fetchAuthor" class="mt-4 px-4 py-2 text-sm text-primary-600 hover:bg-primary-50 rounded-lg">
               重试
             </button>
           </div>
@@ -535,11 +539,8 @@ const getTagStyle = (tag: string) => {
       <template v-else>
         <div class="sidebar-widget profile-card">
           <div class="profile-header">
-            <img
-              :src="author?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'"
-              :alt="author?.username"
-              class="w-[100px] h-[100px] rounded-full object-cover"
-            />
+            <img :src="author?.avatar || 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix'"
+              :alt="author?.username" class="w-[100px] h-[100px] rounded-full object-cover" />
             <div class="flex flex-col items-center gap-2">
               <h3 class="text-xl font-medium h-[28px] leading-[28px]">{{ author?.username || '未登录' }}</h3>
               <!-- <p class="text-sm text-gray-600 h-[20px] leading-[20px]">全栈开发者</p> -->
@@ -592,8 +593,7 @@ const getTagStyle = (tag: string) => {
           <div class="text-center py-4">
             <Icon name="carbon:warning" class="text-4xl mb-2" />
             <p>{{ errors.weather }}</p>
-            <button @click="fetchWeather" 
-                    class="mt-4 px-4 py-2 text-sm bg-white/20 hover:bg-white/30 rounded-lg">
+            <button @click="fetchWeather" class="mt-4 px-4 py-2 text-sm bg-white/20 hover:bg-white/30 rounded-lg">
               重试
             </button>
           </div>
@@ -680,7 +680,7 @@ const getTagStyle = (tag: string) => {
   padding: 1.5rem;
   border-radius: 0.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .widget-title {
@@ -737,9 +737,12 @@ const getTagStyle = (tag: string) => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: .5;
   }
@@ -848,17 +851,13 @@ const getTagStyle = (tag: string) => {
   height: 100%;
   pointer-events: none;
   background:
-    repeating-linear-gradient(
+    repeating-linear-gradient(transparent 0%,
+      rgba(255, 255, 255, 0.3) 90%,
+      transparent 100%),
+    repeating-linear-gradient(90deg,
       transparent 0%,
       rgba(255, 255, 255, 0.3) 90%,
-      transparent 100%
-    ),
-    repeating-linear-gradient(
-      90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.3) 90%,
-      transparent 100%
-    );
+      transparent 100%);
   background-size: 200% 200%;
   animation: rain 1s linear infinite;
 }
@@ -884,28 +883,41 @@ const getTagStyle = (tag: string) => {
   left: 0;
   width: 200%;
   height: 100%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.2) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.2) 50%,
+      transparent 100%);
   animation: fog 8s linear infinite;
 }
 
 @keyframes rain {
-  0% { background-position: 0 0; }
-  100% { background-position: 20px 20px; }
+  0% {
+    background-position: 0 0;
+  }
+
+  100% {
+    background-position: 20px 20px;
+  }
 }
 
 @keyframes snow {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(20px); }
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(20px);
+  }
 }
 
 @keyframes fog {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
 }
 
 .weather-icon {
@@ -983,6 +995,7 @@ const getTagStyle = (tag: string) => {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -1035,12 +1048,10 @@ const getTagStyle = (tag: string) => {
 .special-effects {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    45deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.1) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(45deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.1) 50%,
+      transparent 100%);
   animation: shine 2s infinite;
 }
 
@@ -1048,6 +1059,7 @@ const getTagStyle = (tag: string) => {
   from {
     transform: translateX(-100%);
   }
+
   to {
     transform: translateX(100%);
   }
@@ -1120,9 +1132,12 @@ const getTagStyle = (tag: string) => {
 
 /* 骨架屏动画 */
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.5;
   }
@@ -1193,7 +1208,7 @@ const getTagStyle = (tag: string) => {
     width: 80px;
     height: 80px;
   }
-  
+
   .profile-card {
     min-height: 320px;
   }

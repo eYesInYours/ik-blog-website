@@ -8,7 +8,8 @@ export interface AwesomeLayoutPageNavbarMenuDropdownItem {
 }
 
 export interface AwesomeLayoutPageNavbarMenu {
-  type?: 'link' | 'button' | 'dropdown'
+  type?: 'link' | 'button' | 'dropdown' | 'icon'
+  icon?: string
   title?: string | ((nuxt: NuxtApp) => string)
   to?: RouteLocationRaw | ((nuxt: NuxtApp) => RouteLocationRaw)
   children?: AwesomeLayoutPageNavbarMenuDropdownItem[]

@@ -74,5 +74,9 @@ export default defineNuxtConfig({
     transpile: ['@headlessui/vue']
   },
 
-  compatibilityDate: '2025-01-10'
+  compatibilityDate: '2025-01-10',
+
+  plugins: [
+    '~/plugins/request.ts'
+  ],
 })

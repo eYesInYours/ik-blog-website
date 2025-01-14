@@ -3,6 +3,7 @@ const { fetchApi } = useApi()
 const loading = ref(false)
 const notifications = ref([])
 const filterUnread = ref(false)
+const notificationStore = useNotificationStore()
 
 definePageMeta({ layout: 'page' })
 useHead({ title: '我的通知' })
@@ -12,14 +13,18 @@ const fetchNotifications = async () => {
   if (loading.value) return
   loading.value = true
   try {
-    const res = await fetchApi('/notifications', {
-      method: 'GET',
+    const { data, error } = await useFetch('/notifications', {
+      baseURL: config.public.apiBase,
       params: {
         isRead: filterUnread.value ? 'false' : undefined
+      },
+      headers: {
+        Authorization: `Bearer ${userStore.token}`
       }
     })
-    if (res.code === 200) {
-      notifications.value = res.data.notifications
+    if (error.value) throw error.value
+    if (data.value?.code === 200) {
+      notifications.value = data.value.data.notifications
     }
   } catch (err) {
     console.error('获取通知失败:', err)
@@ -31,14 +36,19 @@ const fetchNotifications = async () => {
 // 标记通知为已读
 const markAsRead = async (id: string) => {
   try {
-    const res = await fetchApi(`/notifications/${id}/read`, {
-      method: 'PUT'
+    const { data, error } = await useFetch(`/notifications/${id}/read`, {
+      baseURL: config.public.apiBase,
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${userStore.token}`
+      }
     })
-    if (res.code === 200) {
-      // 更新本地状态
+    if (error.value) throw error.value
+    if (data.value?.code === 200) {
       const notification = notifications.value.find(n => n._id === id)
-      if (notification) {
+      if (notification && !notification.isRead) {
         notification.isRead = true
+        notificationStore.decrementUnreadCount()
       }
     }
   } catch (err) {
@@ -49,12 +59,17 @@ const markAsRead = async (id: string) => {
 // 标记所有为已读
 const markAllAsRead = async () => {
   try {
-    const res = await fetchApi('/notifications/read-all', {
-      method: 'PUT'
+    const { data, error } = await useFetch('/notifications/read-all', {
+      baseURL: config.public.apiBase,
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${userStore.token}`
+      }
     })
-    if (res.code === 200) {
-      // 更新本地状态
+    if (error.value) throw error.value
+    if (data.value?.code === 200) {
       notifications.value.forEach(n => n.isRead = true)
+      notificationStore.clearUnreadCount()
     }
   } catch (err) {
     console.error('标记全部已读失败:', err)
