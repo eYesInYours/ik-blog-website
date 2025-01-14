@@ -88,9 +88,7 @@ const fetchAuthor = async () => {
     errors.author = null
     const { data, error } = await $request.get('/users/author')
     if (error.value) throw error.value
-    if (data.value?.code === 200) {
-      author.value = data.value.data
-    }
+    author.value = data.value
   } catch (error) {
     console.error('获取作者信息失败:', error)
     errors.author = error.message || '获取作者信息失败'
@@ -109,10 +107,8 @@ const fetchArticles = async (page = 1) => {
       limit: pagination.value.limit
     })
     if (error.value) throw error.value
-    if (data.value?.code === 200) {
-      articles.value = data.value.data.articles
-      pagination.value = data.value.data.pagination
-    }
+    articles.value = data.value.articles
+    pagination.value = data.value.pagination
   } catch (error) {
     console.error('获取文章列表失败:', error)
     errors.articles = error.message || '获取文章列表失败'

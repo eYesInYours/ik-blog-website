@@ -82,8 +82,7 @@ const fetchArchiveData = async () => {
     const {data,error} = await $request.get('/articles/archives', {
         type: activeTab.value
     })
-    archiveData.value = data.value.data
-    console.log(archiveData.value)
+    archiveData.value = data.value
   } catch (error) {
     console.error('获取归档数据失败:', error)
   } finally {

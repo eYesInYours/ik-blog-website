@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+const { $request } = useNuxtApp()
+const { errorToast } = useToast()
 definePageMeta({ layout: 'page' })
 useHead({ title: '朋友圈' })
 
@@ -9,8 +11,6 @@ const previewImages = ref<string[]>([])
 const commentContent = ref('')
 const activeCommentId = ref<number | null>(null)
 
-const { fetchApi } = useApi()
-
 interface Comment {
   _id: number
   authorName: string
@@ -20,7 +20,7 @@ interface Comment {
 }
 
 interface Diary {
-  id: number
+  _id: number
   content: string
   images: string[]
   likes: number
@@ -52,9 +52,7 @@ const removeImage = (index: number) => {
 // 点赞功能
 const toggleLike = async (diary: Diary) => {
   try {
-    await fetchApi(`/diaries/${diary._id}/like`, {
-      method: 'POST'
-    })
+    await $request.post(`/diaries/${diary._id}/like`)
     diary.isLiked = !diary.isLiked
     diary.likes += diary.isLiked ? 1 : -1
   } catch (error) {
@@ -69,19 +67,24 @@ const submitComment = async (diaryId: number) => {
   const diary = diaries.value.find(d => d._id === diaryId)
   if (!diary) return
 
-  await fetchApi('/comments', {
-    method: 'POST',
-    body: {
-      content: commentContent.value,
+  try {
+    await $request.post('/comments', {
+      content: commentContent.value.trim(),
       diaryId,
-      parentCommentId: activeComment.value?._id
-    }
-  })
+      parentCommentId: activeComment.value?._id || null
+    })
 
-  diary.comments = await fetchComments(diaryId)
-  console.log(diary.comments)
-  commentContent.value = ''
-  activeComment.value = null
+    // 重新获取评论列表
+    const { data } = await $request.get(`/comments/diary/${diaryId}`)
+    diary.comments = data.value
+
+    // 清空评论内容和状态
+    commentContent.value = ''
+    activeComment.value = null
+  } catch (error) {
+    console.error('发表评论失败:', error)
+    errorToast('发表评论失败')
+  }
 }
 
 // 加载状态
@@ -91,8 +94,8 @@ const loading = ref(true)
 const fetchDiaries = async () => {
   try {
     loading.value = true
-    const res = await fetchApi('/diaries')
-    diaries.value = res.data.diaries
+    const { data } = await $request.get('/diaries')
+    diaries.value = data.value.diaries
   } catch (error) {
     console.error('获取日记列表失败:', error)
   } finally {
@@ -100,16 +103,8 @@ const fetchDiaries = async () => {
   }
 }
 
-// 获取帖子的评论列表
-const fetchComments = async (diaryId: number) => {
-  const { data } = await fetchApi(`/comments/diary/${diaryId}`)
-  return data
-}
-
 // 初始化
-onMounted(() => {
-  fetchDiaries()
-})
+fetchDiaries()
 
 const cancelComment = () => {
   activeComment.value = null

@@ -57,9 +57,8 @@ export const useUserStore = defineStore('user', {
         try {
           const { $request } = useNuxtApp()
           const response = await $request.get<ApiResponse<UserInfo>>('/users/info')
-          if (response.code === 200 && response.data) {
-            this.setUserInfo(response.data)
-          }
+          console.log(response)
+          this.setUserInfo(response.value.data)
         } catch (error) {
           this.clearLoginState()
         }

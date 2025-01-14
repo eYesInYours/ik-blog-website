@@ -46,13 +46,13 @@
       <!-- 文章操作区 -->
       <div class="article-actions-wrapper">
         <div class="article-actions">
-          <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle" :disabled="!user">
+          <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle" :disabled="!token">
             <i :class="article.isLiked ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" />
             <span>{{ article.likes || 0 }}</span>
             <span class="action-label">点赞</span>
           </button>
           <button class="action-btn" :class="{ 'collected': article.isCollected }" @click="handleCollectArticle"
-            :disabled="!user">
+            :disabled="!token">
             <i :class="article.isCollected ? 'i-carbon-bookmark-filled' : 'i-carbon-bookmark'" />
             <span>{{ article.collections || 0 }}</span>
             <span class="action-label">收藏</span>
@@ -331,9 +331,7 @@ const fetchArticle = async () => {
     loading.value = true
     const { data, error } = await $request.get(`/articles/${route.params.id}`)
     if (error.value) throw error.value
-    if (data.value?.code === 200) {
-      article.value = data.value.data
-    }
+    article.value = data.value
   } catch (err) {
     console.error('获取文章详情失败:', err)
     error.value = err.message || '获取文章详情失败'
@@ -404,9 +402,9 @@ function cancelReply() {
 }
 
 async function fetchComments() {
-  const response = await $request.get(`/comments/article/${route.params.id}`)
-  if (response.code === 200 && article.value) {
-    article.value.comments = response.data
+  const { data } = await $request.get(`/comments/article/${route.params.id}`)
+  if (data.value && article.value) {
+    article.value.comments = data.value
   }
 }
 
@@ -477,10 +475,10 @@ const handleLike = async (commentId: string) => {
     comment.likes = comment.likes + (comment.isLiked ? 1 : -1)
 
     // 发送请求
-    const response = await $request.put(`/comments/${commentId}/like`)
+    const { data } = await $request.put(`/comments/${commentId}/like`)
 
     // 如果请求失败，回滚状态
-    if (response.code !== 200) {
+    if (data.value.code !== 200) {
       comment.isLiked = !comment.isLiked
       comment.likes = comment.likes + (comment.isLiked ? 1 : -1)
     }
@@ -492,7 +490,7 @@ const handleLike = async (commentId: string) => {
 
 // 处理文章点赞
 const handleLikeArticle = async () => {
-  if (!user.value) {
+  if (!token.value) {
     warningToast('请先登录')
     navigateTo('/login')
     return
@@ -527,7 +525,7 @@ const handleLikeArticle = async () => {
 
 // 处理文章收藏
 const handleCollectArticle = async () => {
-  if (!user.value) {
+  if (!token.value) {
     warningToast('请先登录')
     navigateTo('/login')
     return
@@ -538,19 +536,13 @@ const handleCollectArticle = async () => {
     article.value!.isCollected = !article.value!.isCollected
     article.value!.collections = article.value!.collections + (article.value!.isCollected ? 1 : -1)
 
-    const response = await $request.post<CollectResponse>(`/articles/${article.value?._id}/collect`)
+    const { data, error } = await $request.post<CollectResponse>(`/articles/${article.value?._id}/collect`)
+    console.log(data, error)
+    // 使用服务器返回的实际数据更新
+    article.value!.collections = data.value.collections
+    article.value!.isCollected = data.value.isCollected
+    successToast(data.value.message)
 
-    if (response.code === 200) {
-      // 使用服务器返回的实际数据更新
-      article.value!.collections = response.data.collections
-      article.value!.isCollected = response.data.isCollected
-      successToast(response.message)
-    } else {
-      // 如果请求失败，回滚本地状态
-      article.value!.isCollected = !article.value!.isCollected
-      article.value!.collections = article.value!.collections + (article.value!.isCollected ? 1 : -1)
-      errorToast(response.message)
-    }
   } catch (err) {
     // 发生错误时回滚本地状态
     article.value!.isCollected = !article.value!.isCollected
@@ -606,6 +598,7 @@ const getTagStyle = (tag: string) => {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
+  width: 100%;
 }
 
 .article-header {

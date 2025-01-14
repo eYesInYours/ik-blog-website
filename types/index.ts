@@ -1,6 +1,7 @@
 export interface UserInfo {
   id: number
   email: string
+  intro: string
   username: string
   avatar?: string
 }
@@ -25,4 +26,4 @@ export interface RegisterCredentials {
   email: string
   password: string
   username: string
-} 
+}

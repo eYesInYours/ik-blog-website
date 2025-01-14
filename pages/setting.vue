@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import { useApi } from '~/composables/useApi'
 import { useUserStore } from '~/stores/user'
 import { useNotificationStore } from '~/stores/notification'
 import { compressImage } from '~/utils/image'
@@ -9,7 +8,7 @@ useHead({ title: '个人中心' })
 
 const { successToast, errorToast } = useToastMsg()
 
-const { fetchApi } = useApi()
+const { $request } = useNuxtApp()
 const userStore = useUserStore()
 
 // 上传状态
@@ -19,31 +18,48 @@ const saving = ref(false)
 // 默认选择 profile 标签页
 const currentTab = ref('profile')
 
-// 示例数据
-const favoriteArticles = ref([
-  {
-    id: 1,
-    title: '使用 Nuxt 3 构建现代化博客',
-    summary: '本文介绍如何使用 Nuxt 3、Vue 3 和 TypeScript 构建一个现代化的技术博客...',
-    date: '2024-03-20',
-    likes: 45,
-    comments: 12,
-    isLiked: true
-  },
-  // ... 更多收藏文章
-])
+// 收藏文章列表数据
+const favoriteArticles = ref<Article[]>([])
+const favoritePagination = ref({
+  total: 0,
+  totalPages: 0,
+  currentPage: 1,
+  limit: 10
+})
 
-const commentHistory = ref([
-  {
-    id: 1,
-    articleId: 1,
-    articleTitle: '使用 Nuxt 3 构建现代化博客',
-    content: '这篇文章写得很好，对我帮助很大！',
-    date: '2024-03-21 14:30',
-    likes: 5
-  },
-  // ... 更多评论历史
-])
+// 加载状态
+const loadingStates = reactive({
+  articles: false,
+  profile: false
+})
+
+// 错误状态
+const errors = reactive({
+  articles: null as string | null,
+  profile: null as string | null
+})
+
+// 评论历史数据
+const commentHistory = ref([])
+const commentLoading = ref(false)
+const commentError = ref(null)
+
+// 获取评论历史
+const fetchCommentHistory = async () => {
+  try {
+    commentLoading.value = true
+    commentError.value = null
+    const { data } = await $request.get('/comments', {
+      history: true
+    })
+    commentHistory.value = data.value
+  } catch (error) {
+    console.error('获取评论历史失败:', error)
+    commentError.value = error.message || '获取评论历史失败'
+  } finally {
+    commentLoading.value = false
+  }
+}
 
 const readingHistory = ref([
   {
@@ -134,22 +150,16 @@ const saveUserInfo = async () => {
       } else {
         formData.append('file', avatarFile.value)
       }
-      
-      const { data } = await fetchApi('/files/upload', {
-        method: 'POST',
-        body: formData,
-      })
-      avatarUrl = data.file.url
+
+      const { data } = await $request.post('/files/upload', formData)
+      avatarUrl = data.value.file.url
     }
 
     // 调用更新接口
-    const response = await fetchApi('/users/update', {
-      method: 'PUT',
-      body: {
-        avatar: avatarUrl,
-        nickname: userInfo.value.username,
-        intro: userInfo.value.intro
-      }
+    const { data } = await $request.put('/users/update', {
+      avatar: avatarUrl,
+      username: userInfo.value.username,
+      intro: userInfo.value.intro
     })
 
     // 更新 store
@@ -158,7 +168,7 @@ const saveUserInfo = async () => {
       username: userInfo.value.username,
       intro: userInfo.value.intro
     })
-    
+
     // 清除临时数据
     tempAvatar.value = ''
     avatarFile.value = null
@@ -185,12 +195,51 @@ onMounted(() => {
   if (savedTab) {
     currentTab.value = savedTab
   }
-  
+
   // 监听标签页变化并保存到 localStorage
   watch(currentTab, (newTab) => {
     localStorage.setItem('setting-tab', newTab)
   })
 })
+
+// 获取收藏文章列表
+const fetchFavoriteArticles = async (page = 1) => {
+  try {
+    loadingStates.articles = true
+    errors.articles = null
+    const { data } = await $request.get('/articles', {
+      page,
+      limit: favoritePagination.value.limit,
+      type: 'collected'
+    })
+    favoriteArticles.value = data.value.articles
+    favoritePagination.value = data.value.pagination
+  } catch (error) {
+    console.error('获取收藏文章列表失败:', error)
+    errors.articles = error.message || '获取收藏文章列表失败'
+  } finally {
+    loadingStates.articles = false
+  }
+}
+
+// 监听标签页变化
+watch(currentTab, (newTab) => {
+  if (newTab === 'favorite') {
+    fetchFavoriteArticles()
+  } else if (newTab === 'comments') {
+    fetchCommentHistory()
+  }
+})
+
+// 格式化日期
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString('zh-CN')
+}
+
+// 前往文章详情页面
+function handleClick(id: string) {
+  navigateTo(`/articles/${id}`)
+}
 
 </script>
 
@@ -321,45 +370,92 @@ onMounted(() => {
 
         <!-- 收藏文章 -->
         <div v-if="currentTab === 'favorite'" class="space-y-4">
-          <div v-for="article in favoriteArticles" :key="article.id"
+          <!-- 加载状态 -->
+          <div v-if="loadingStates.articles" class="py-8">
+            <div class="flex justify-center">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            </div>
+          </div>
+
+          <!-- 错误提示 -->
+          <div v-else-if="errors.articles" class="py-8 text-center text-red-500">
+            {{ errors.articles }}
+          </div>
+
+          <!-- 空状态 -->
+          <div v-else-if="!favoriteArticles.length" class="py-8 text-center text-gray-500 dark:text-gray-400">
+            还没有收藏任何文章
+          </div>
+
+          <!-- 文章列表 -->
+          <div v-else v-for="article in favoriteArticles" :key="article._id"
             class="bg-white dark:bg-dark-500 rounded-lg p-4 shadow-sm">
-            <div class="flex justify-between items-start">
+            <div class="flex gap-4">
+              <!-- 文章封面图 -->
+              <div class="flex-shrink-0">
+                <img :src="article.cover || '/images/default-cover.jpg'" :alt="article.title"
+                  class="w-32 h-24 object-cover rounded-lg" @error="e => e.target.src = '/images/default-cover.jpg'">
+              </div>
+
+              <!-- 文章内容 -->
               <div>
                 <h3 class="text-lg font-semibold mb-2">
-                  <NuxtLink :to="`/posts/${article.id}`" class="hover:text-primary-600 dark:hover:text-primary-400">
+                  <NuxtLink :to="`/articles/${article._id}`" class="hover:text-primary-600 dark:hover:text-primary-400">
                     {{ article.title }}
                   </NuxtLink>
                 </h3>
                 <p class="text-gray-600 dark:text-gray-300 text-sm mb-2">
-                  {{ article.summary }}
+                  {{ article.content }}
                 </p>
                 <div class="text-sm text-gray-500 dark:text-gray-400">
-                  {{ article.date }} · {{ article.likes }} 点赞 · {{ article.comments }} 评论
+                  {{ formatDate(article.createdAt) }} · {{ article.likes }} 点赞 · {{ article.comments }} 评论
                 </div>
+
               </div>
-              <button @click="removeFavorite(article.id)" class="text-red-500 hover:text-red-600">
-                <i class="i-carbon-favorite-filled text-xl"></i>
-              </button>
             </div>
+          </div>
+
+          <!-- 分页 -->
+          <div v-if="favoritePagination.total > favoritePagination.limit" class="flex justify-center mt-6">
+            <UPagination v-model="favoritePagination.currentPage" :total="favoritePagination.total"
+              :page-size="favoritePagination.limit" :page-count="favoritePagination.totalPages"
+              @change="fetchFavoriteArticles" />
           </div>
         </div>
 
         <!-- 评论历史 -->
         <div v-if="currentTab === 'comments'" class="space-y-4">
-          <div v-for="comment in commentHistory" :key="comment.id"
+          <!-- 加载状态 -->
+          <div v-if="commentLoading" class="py-8">
+            <div class="flex justify-center">
+              <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
+            </div>
+          </div>
+
+          <!-- 错误提示 -->
+          <div v-else-if="commentError" class="py-8 text-center text-red-500">
+            {{ commentError }}
+          </div>
+
+          <!-- 空状态 -->
+          <div v-else-if="!commentHistory.length" class="py-8 text-center text-gray-500 dark:text-gray-400">
+            还没有发表过评论
+          </div>
+
+          <div v-for="comment in commentHistory" :key="comment._id"
             class="bg-white dark:bg-dark-500 rounded-lg p-4 shadow-sm">
             <div class="flex justify-between">
               <div>
-                <NuxtLink :to="`/posts/${comment.articleId}`"
+                <NuxtLink :to="`/articles/${comment.articleId}`"
                   class="text-sm text-gray-500 dark:text-gray-400 hover:text-primary-600 dark:hover:text-primary-400">
                   {{ comment.articleTitle }}
                 </NuxtLink>
                 <p class="mt-2">{{ comment.content }}</p>
                 <div class="text-sm text-gray-500 dark:text-gray-400 mt-2">
-                  {{ comment.date }} · {{ comment.likes }} 点赞
+                  {{ formatDate(comment.createdAt) }} · {{ comment.likes }} 点赞
                 </div>
               </div>
-              <button @click="deleteComment(comment.id)" class="text-gray-400 hover:text-red-500">
+              <button @click="deleteComment(comment._id)" class="text-gray-400 hover:text-red-500">
                 <i class="i-carbon-trash-can text-xl"></i>
               </button>
             </div>

@@ -18,17 +18,14 @@ const handleLogin = async () => {
   error.value = ''
 
   try {
-    const success = await login({
+    await login({
       email: form.value.email,
       password: form.value.password
     })
 
-    if (success) {
-      router.push('/')
-    } else {
-      error.value = '登录失败，请检查账号和密码'
-    }
+    router.push('/')
   } catch (e: any) {
+    console.log(e)
     error.value = e.message || '登录时发生错误'
   } finally {
     loading.value = false

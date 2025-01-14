@@ -2,7 +2,7 @@ export default defineNuxtPlugin(() => {
     const config = useRuntimeConfig();
     const userStore = useUserStore();
     const { errorToast } = useToastMsg();
-    
+
     console.log('request plugin 初始化:', {
         baseURL: config.public.apiBase,
         token: userStore.token
@@ -22,8 +22,8 @@ export default defineNuxtPlugin(() => {
         // 响应拦截器
         onResponse({ response }) {
             if (response.status >= 200 && response.status < 300) {
-                console.log('response',response._data)
-                response=response._data
+                response._data = response._data.data
+                console.log('response processed:', response._data)
             }
         },
         // 错误处理器
@@ -107,4 +107,4 @@ declare module '#app' {
             delete: <T = any>(url: string, params?: any, options?: any) => ReturnType<typeof useFetch<T>>;
         }
     }
-} 
+}

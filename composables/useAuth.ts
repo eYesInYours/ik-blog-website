@@ -11,13 +11,8 @@ export const useAuth = () => {
     try {
       const { data, error } = await $request.post('/auth/login', credentials)
       if (error.value) throw error.value
-      
-      if (data.value?.code === 200) {
-        userStore.setLoginState(data.value.data.token, data.value.data.user)
-        successToast('登录成功')
-        return true
-      }
-      return false
+      userStore.setLoginState(data.value.token, data.value.user)
+      successToast('登录成功')
     } catch (err) {
       console.error('登录失败:', err)
       throw err
@@ -27,33 +22,27 @@ export const useAuth = () => {
   // 注册
   const register = async (credentials: RegisterCredentials) => {
     try {
-      const response = await request.post<ApiResponse>('/auth/register', credentials)
-
-      if (response.code === 200) {
-        return true
-      }
-
-      throw new Error(response.message)
+      const { data, error } = await $request.post('/auth/register', credentials)
+      if (error.value) throw error.value
+      userStore.setLoginState(data.value.token, data.value.user)
+      successToast('注册成功')
     } catch (error) {
       logger.error('注册失败', error)
-      return false
+      throw error
     }
   }
 
   // 登出
   const logout = () => {
-    userStore.logout()
+    userStore.clearLoginState()
   }
 
   // 获取用户信息
   const fetchUserInfo = async () => {
     try {
-      const response = await request.get<ApiResponse<UserInfo>>('/auth/user')
-      if (response.code === 200 && response.data) {
-        userStore.updateUserInfo(response.data)
-        return response.data
-      }
-      return null
+      const { data } = await $request.get('/auth/user')
+      userStore.updateUserInfo(data.value.user)
+      return data.value.user
     } catch (error) {
       logger.error('获取用户信息失败', error)
       return null
