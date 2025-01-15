@@ -2,6 +2,8 @@
 definePageMeta({ layout: false })
 useHead({ title: '登录' })
 
+const { awesome } = useAppConfig()
+
 const { login } = useAuth()
 const router = useRouter()
 const form = ref({
@@ -35,19 +37,19 @@ const selectAccount = (account: {email: string, password: string}) => {
 
 const saveAccount = () => {
   if (!form.value.remember) return
-  
+
   const account = {
     email: form.value.email,
     password: form.value.password
   }
-  
+
   const index = savedAccounts.value.findIndex(a => a.email === account.email)
   if (index > -1) {
     savedAccounts.value[index] = account
   } else {
     savedAccounts.value.push(account)
   }
-  
+
   localStorage.setItem('savedAccounts', JSON.stringify(savedAccounts.value))
 }
 
@@ -93,23 +95,23 @@ const handleSubmit = async () => {
       <!-- 右侧登录表单 -->
       <div class="auth-form-container">
         <div class="auth-form">
-          <h1 class="text-2xl font-bold mb-8">精灵学院</h1>
+          <h1 class="text-2xl font-bold mb-8">{{ awesome.name }}</h1>
           <h2 class="text-xl font-semibold mb-6">登入账户 🔑</h2>
 
           <form @submit.prevent="handleSubmit" class="space-y-6">
             <!-- 邮箱输入框 -->
             <div class="rounded-md shadow-sm -space-y-px">
               <div class="relative">
-                <input v-model="form.email" 
-                  type="email" 
+                <input v-model="form.email"
+                  type="email"
                   required
                   autocomplete="off"
                   class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 dark:border-gray-700 placeholder-gray-500 text-gray-900 dark:text-white rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 dark:bg-gray-800 focus:z-10 sm:text-sm"
                   placeholder="邮箱地址"
                   @focus="showAccountList = true">
-                
+
                 <!-- 账号下拉列表 -->
-                <div v-if="showAccountList && savedAccounts.length > 0" 
+                <div v-if="showAccountList && savedAccounts.length > 0"
                      class="absolute w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg z-10">
                   <ul class="py-1">
                     <li v-for="account in savedAccounts" :key="account.email"
@@ -142,7 +144,7 @@ const handleSubmit = async () => {
                   记住账号
                 </label>
               </div>
-              
+
               <div class="flex items-center">
                 <input v-model="form.autoLogin" type="checkbox"
                   class="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded">

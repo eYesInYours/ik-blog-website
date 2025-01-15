@@ -32,7 +32,7 @@ export const useUserStore = defineStore('user', {
       this.userInfo = null
       if (process.client) {
         localStorage.removeItem('token')
-        localStorage.remoteItem('userInfo')
+        localStorage.removeItem('userInfo')
       }
     },
 

@@ -29,7 +29,7 @@ export default defineNuxtPlugin(() => {
         // 错误处理器
         onResponseError({ response }) {
             console.error('请求错误:', response);
-            switch (response.status) {
+            switch (response._data.code) {
                 case 401:
                     errorToast('未登录或登录已过期');
                     userStore.setLoginState('', null);
@@ -42,7 +42,7 @@ export default defineNuxtPlugin(() => {
                     errorToast('资源不存在');
                     break;
                 default:
-                    errorToast(response._data?.msg || '请求失败');
+                    errorToast(response._data?.message || '请求失败');
             }
         }
     };

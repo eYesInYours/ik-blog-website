@@ -2,14 +2,17 @@
 import { useUserStore } from '~/stores/user'
 import { useNotificationStore } from '~/stores/notification'
 import { compressImage } from '~/utils/image'
+import { useRouter } from 'vue-router'
 
 definePageMeta({ layout: 'page' })
-useHead({ title: '个人中心' })
+useHead({ title: 'Settings' })
 
 const { successToast, errorToast } = useToastMsg()
 
 const { $request } = useNuxtApp()
 const userStore = useUserStore()
+const router = useRouter()
+const showLogoutModal = ref(false)
 
 // 上传状态
 const uploading = ref(false)
@@ -241,6 +244,19 @@ function handleClick(id: string) {
   navigateTo(`/articles/${id}`)
 }
 
+// 退出登录
+const handleLogout = () => {
+  showLogoutModal.value = true
+}
+
+// 确认退出
+const confirmLogout = () => {
+  userStore.clearLoginState()
+  showLogoutModal.value = false
+  successToast('已退出登录')
+  router.push('/')
+}
+
 </script>
 
 <template>
@@ -252,7 +268,7 @@ function handleClick(id: string) {
           <h1 class="text-2xl font-bold text-gray-900 dark:text-white">个人中心</h1>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理你的个人信息和偏好设置</p>
         </div>
-        <div class="flex items-center space-x-6">
+        <div class="flex items-center space-x-8">
           <div class="text-center">
             <div class="text-xl font-semibold text-primary-600 dark:text-primary-400">{{ statistics.totalRead }}</div>
             <div class="text-sm text-gray-500 dark:text-gray-400">阅读量</div>
@@ -266,26 +282,63 @@ function handleClick(id: string) {
             <div class="text-xl font-semibold text-primary-600 dark:text-primary-400">{{ statistics.totalLikes }}</div>
             <div class="text-sm text-gray-500 dark:text-gray-400">获赞</div>
           </div>
+          <div class="border-l pl-8 dark:border-gray-700">
+            <UButton color="gray" variant="soft" icon="i-carbon-logout" @click="handleLogout">
+              退出登录
+            </UButton>
+          </div>
         </div>
       </div>
 
-      <!-- 标签页导航 -->
-      <div class="flex space-x-1 mb-8 border-b dark:border-gray-700">
-        <button v-for="tab in ['profile', 'favorite', 'comments', 'history', 'stats']" :key="tab"
-          @click="currentTab = tab" :class="[
-            'px-6 py-3 -mb-px font-medium transition-colors duration-200',
-            currentTab === tab
-              ? 'border-b-2 border-primary-500 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/10'
-              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-          ]">
-          {{ {
-            profile: '个人信息',
-            favorite: '收藏文章',
-            // comments: '评论历史',
-            // history: '阅读历史',
-            // stats: '阅读统计'
-          }[tab] }}
-        </button>
+      <!-- 退出确认对话框 -->
+      <UModal v-model="showLogoutModal">
+        <UCard :ui="{
+          ring: '',
+          divide: 'divide-y divide-gray-100 dark:divide-gray-800',
+          body: 'p-0'
+        }">
+          <div class="flex items-center p-4">
+            <div class="flex-1">
+              <div class="flex items-center">
+                <Icon name="i-carbon-logout" class="text-gray-400 mr-2 text-xl" />
+                <span class="text-base font-medium">确认退出</span>
+              </div>
+              <div class="mt-1 text-sm text-gray-500">
+                退出后需要重新登录才能访问账号
+              </div>
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 px-4 py-3 bg-gray-50 dark:bg-gray-800/50">
+            <UButton color="gray" variant="soft" size="sm" @click="showLogoutModal = false">
+              取消
+            </UButton>
+            <UButton color="red" variant="solid" size="sm" @click="confirmLogout">
+              确认退出
+            </UButton>
+          </div>
+        </UCard>
+      </UModal>
+    </LayoutPageSection>
+    <!-- 其他设置内容 -->
+    <LayoutPageSection>
+      <div class="mb-6">
+        <HeadlessTabGroup v-model="currentTab" class="flex space-x-1 mb-8 border-b dark:border-gray-700">
+          <button v-for="tab in ['profile', 'favorite', 'comments', 'history', 'stats']" :key="tab"
+            @click="currentTab = tab" :class="[
+              'px-6 py-3 -mb-px font-medium transition-colors duration-200',
+              currentTab === tab
+                ? 'border-b-2 border-primary-500 text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/10'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            ]">
+            {{ {
+              profile: '个人信息',
+              favorite: '收藏文章',
+              // comments: '评论历史',
+              // history: '阅读历史',
+              // stats: '阅读统计'
+            }[tab] }}
+          </button>
+        </HeadlessTabGroup>
       </div>
 
       <!-- 内容区域 -->

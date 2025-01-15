@@ -162,6 +162,142 @@ interface WeatherData {
   windSpeed: number
 }
 
+// 城市选择相关
+interface District {
+  name: string
+  adcode: string
+  level: string
+  districts?: District[]
+}
+
+const showCitySelect = ref(false)
+const selectedCity = ref<District | null>(null)
+const provinces = ref<District[]>([])
+const cities = ref<District[]>([])
+const districts = ref<District[]>([])
+const currentProvince = ref<District | null>(null)
+const currentCity = ref<District | null>(null)
+const loadingCities = ref(false)
+const citySelectModal = ref(false)
+
+// 打开城市选择弹窗
+const openCitySelect = () => {
+  citySelectModal.value = true
+  // 重置选择状态
+  currentProvince.value = null
+  currentCity.value = null
+  cities.value = []
+  districts.value = []
+  // 获取省份列表
+  if (!provinces.value.length) {
+    fetchProvinces()
+  }
+}
+
+// 获取省份列表
+const fetchProvinces = async () => {
+  try {
+    loadingCities.value = true
+    const config = useRuntimeConfig()
+    const response = await fetch(
+      `https://restapi.amap.com/v3/config/district?keywords=中国&subdistrict=1&key=${config.public.weatherApiKey}`
+    )
+    const data = await response.json()
+    if (data.status === '1' && data.districts?.[0]?.districts) {
+      provinces.value = data.districts[0].districts
+    }
+  } catch (error) {
+    console.error('获取城市列表失败:', error)
+  } finally {
+    loadingCities.value = false
+  }
+}
+
+// 获取城市列表
+const fetchCities = async (provinceCode: string) => {
+  try {
+    loadingCities.value = true
+    const config = useRuntimeConfig()
+    const response = await fetch(
+      `https://restapi.amap.com/v3/config/district?keywords=${provinceCode}&subdistrict=1&key=${config.public.weatherApiKey}`
+    )
+    const data = await response.json()
+    if (data.status === '1' && data.districts?.[0]?.districts) {
+      cities.value = data.districts[0].districts
+    }
+  } catch (error) {
+    console.error('获取城市列表失败:', error)
+  } finally {
+    loadingCities.value = false
+  }
+}
+
+// 获取辖区列表
+const fetchDistricts = async (cityCode: string) => {
+  try {
+    loadingCities.value = true
+    const config = useRuntimeConfig()
+    const response = await fetch(
+      `https://restapi.amap.com/v3/config/district?keywords=${cityCode}&subdistrict=1&key=${config.public.weatherApiKey}`
+    )
+    const data = await response.json()
+    if (data.status === '1' && data.districts?.[0]?.districts) {
+      districts.value = data.districts[0].districts
+    }
+  } catch (error) {
+    console.error('获取辖区列表失败:', error)
+  } finally {
+    loadingCities.value = false
+  }
+}
+
+// 处理省份选择
+const handleProvinceSelect = async (province: District) => {
+  currentProvince.value = province
+  currentCity.value = null
+  cities.value = []
+  districts.value = []
+  await fetchCities(province.adcode)
+}
+
+// 处理城市选择
+const handleCitySelect = async (city: District) => {
+  currentCity.value = city
+  districts.value = []
+  await fetchDistricts(city.adcode)
+}
+
+// 处理辖区选择
+const handleDistrictSelect = async (district: District) => {
+  citySelectModal.value = false
+  try {
+    loadingStates.weather = true
+    const config = useRuntimeConfig()
+    const response = await fetch(
+      `https://restapi.amap.com/v3/weather/weatherInfo?key=${config.public.weatherApiKey}&city=${district.adcode}&extensions=base`
+    )
+    const data = await response.json()
+
+    if (data.status === '1' && data.lives?.[0]) {
+      const weatherInfo = data.lives[0]
+      weather.value = {
+        temperature: Number(weatherInfo.temperature),
+        city: weatherInfo.city,
+        condition: weatherConditionMap[weatherInfo.weather] || 'sunny',
+        humidity: Number(weatherInfo.humidity),
+        windSpeed: Number(weatherInfo.windpower)
+      }
+      localStorage.setItem('weather-data', JSON.stringify(weather.value))
+      localStorage.setItem('weather-cache-time', String(Date.now()))
+    }
+  } catch (error) {
+    console.error('获取天气数据失败:', error)
+    errors.weather = '获取天气数据失败'
+  } finally {
+    loadingStates.weather = false
+  }
+}
+
 // 天气状态映射
 const weatherConditionMap: Record<string, string> = {
   '晴': 'sunny',
@@ -174,6 +310,18 @@ const weatherConditionMap: Record<string, string> = {
   '雾': 'fog'
 }
 
+// 天气背景图片映射
+const weatherBgMap: Record<string, string> = {
+  sunny: 'https://images.unsplash.com/photo-1592210454359-9043f067919b?q=80&w=1000',
+  cloudy: 'https://images.unsplash.com/photo-1534088568595-a066f410bcda?q=80&w=1000',
+  overcast: 'https://images.unsplash.com/photo-1483977399921-6cf94f6fdc3a?q=80&w=1000',
+  'light-rain': 'https://images.unsplash.com/photo-1519692933481-e162a57d6721?q=80&w=1000',
+  rain: 'https://images.unsplash.com/photo-1519692933481-e162a57d6721?q=80&w=1000',
+  'heavy-rain': 'https://images.unsplash.com/photo-1519692933481-e162a57d6721?q=80&w=1000',
+  snow: 'https://images.unsplash.com/photo-1491002052546-bf38f186af56?q=80&w=1000',
+  fog: 'https://images.unsplash.com/photo-1487621167305-5d248087c724?q=80&w=1000'
+}
+
 // 天气数据
 const weather = ref<WeatherData>({
   temperature: 0,
@@ -182,6 +330,14 @@ const weather = ref<WeatherData>({
   humidity: 0,
   windSpeed: 0
 })
+
+// 切换城市选择器
+const toggleCitySelect = () => {
+  showCitySelect.value = !showCitySelect.value
+  if (showCitySelect.value && !provinces.value.length) {
+    fetchProvinces()
+  }
+}
 
 // 从缓存加载天气数据
 const loadCachedWeather = () => {
@@ -204,23 +360,67 @@ const loadCachedWeather = () => {
 }
 
 // 获取天气数据
-const fetchWeather = async () => {
+// 检查地理位置权限
+const checkLocationPermission = async () => {
   try {
-    // 如果是首次加载才显示加载状态
-    if (!loadCachedWeather()) {
-      loadingStates.weather = true
+    const result = await navigator.permissions.query({ name: 'geolocation' })
+    return result.state
+  } catch (error) {
+    console.error('检查地理位置权限失败:', error)
+    return 'denied'
+  }
+}
+
+// 请求地理位置权限
+const requestLocationPermission = () => {
+  if (!navigator.geolocation) {
+    errors.weather = '您的浏览器不支持地理位置功能'
+    return
+  }
+
+  // 先重置错误状态
+  errors.weather = null
+  loadingStates.weather = true
+
+  // 使用 getCurrentPosition 会触发浏览器的权限请求
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      // 用户同意后，直接使用获取到的位置信息
+      const { latitude, longitude } = position.coords
+      // 调用天气 API
+      getWeatherByLocation(latitude, longitude)
+    },
+    (error) => {
+      console.error('获取地理位置失败:', error)
+      loadingStates.weather = false
+      switch (error.code) {
+        case error.PERMISSION_DENIED:
+          errors.weather = '获取地理位置失败：请在浏览器设置中允许访问位置信息'
+          break
+        case error.POSITION_UNAVAILABLE:
+          errors.weather = '获取地理位置失败：位置信息不可用'
+          break
+        case error.TIMEOUT:
+          errors.weather = '获取地理位置失败：请求超时'
+          break
+        default:
+          errors.weather = '获取地理位置失败'
+      }
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
     }
-    errors.weather = null
+  )
+}
 
-    // 1. 先获取地理位置
-    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject)
-    })
-
-    const { latitude, longitude } = position.coords
+// 根据位置获取天气信息
+const getWeatherByLocation = async (latitude: number, longitude: number) => {
+  try {
     const config = useRuntimeConfig()
 
-    // 2. 先通过经纬度获取地理编码
+    // 获取地理编码
     const geocodeResponse = await fetch(
       `https://restapi.amap.com/v3/geocode/regeo?key=${config.public.weatherApiKey}&location=${longitude},${latitude}`
     )
@@ -235,9 +435,57 @@ const fetchWeather = async () => {
       throw new Error('无法获取城市编码')
     }
 
-    // 3. 调用高德地图天气 API
-    const response = await fetch(
+    // 获取天气数据
+    const weatherResponse = await fetch(
       `https://restapi.amap.com/v3/weather/weatherInfo?key=${config.public.weatherApiKey}&city=${adcode}&extensions=base`
+    )
+    const weatherData = await weatherResponse.json()
+
+    if (weatherData.status === '1' && weatherData.lives?.[0]) {
+      const weatherInfo = weatherData.lives[0]
+      weather.value = {
+        temperature: Number(weatherInfo.temperature),
+        city: weatherInfo.city,
+        condition: weatherConditionMap[weatherInfo.weather] || 'sunny',
+        humidity: Number(weatherInfo.humidity),
+        windSpeed: Number(weatherInfo.windpower)
+      }
+      // 更新缓存
+      localStorage.setItem('weather-data', JSON.stringify(weather.value))
+      localStorage.setItem('weather-cache-time', String(Date.now()))
+    }
+  } catch (error) {
+    console.error('获取天气数据失败:', error)
+    errors.weather = '获取天气数据失败'
+  } finally {
+    loadingStates.weather = false
+  }
+}
+
+// 获取天气数据
+const fetchWeather = async () => {
+  // 先检查缓存
+  const cachedData = localStorage.getItem('weather-data')
+  const cacheTime = localStorage.getItem('weather-cache-time')
+
+  // 如果有缓存且未过期（30分钟内），直接使用缓存数据
+  if (cachedData && cacheTime) {
+    const now = Date.now()
+    const cacheAge = now - Number(cacheTime)
+    if (cacheAge < 30 * 60 * 1000) { // 30分钟
+      weather.value = JSON.parse(cachedData)
+      loadingStates.weather = false
+      return
+    }
+  }
+
+  // 无缓存或缓存已过期，设置加载状态并获取新数据
+  loadingStates.weather = true
+  try {
+    errors.weather = null
+    const config = useRuntimeConfig()
+    const response = await fetch(
+      `https://restapi.amap.com/v3/weather/weatherInfo?key=${config.public.weatherApiKey}&city=430100&extensions=base`
     )
     const data = await response.json()
 
@@ -255,16 +503,8 @@ const fetchWeather = async () => {
       localStorage.setItem('weather-cache-time', String(Date.now()))
     }
   } catch (error) {
-    console.error('获取天气信息失败:', error)
-    errors.weather = error.message || '获取天气信息失败'
-    // 设置默认值
-    weather.value = {
-      temperature: 25,
-      city: '定位失败',
-      condition: 'sunny',
-      humidity: 50,
-      windSpeed: 3
-    }
+    console.error('获取天气数据失败:', error)
+    errors.weather = '获取天气数据失败'
   } finally {
     loadingStates.weather = false
   }
@@ -287,7 +527,7 @@ onMounted(() => {
 // 初始化
 fetchAuthor()
 fetchArticles()
-fetchWeather()
+
 
 onUnmounted(() => {
   if (timeInterval) clearInterval(timeInterval)
@@ -322,14 +562,16 @@ const specialDateMessage = computed(() => {
 
 // 获取天气动画类名
 const getWeatherClass = computed(() => {
+  const condition = weather.value.condition
   return {
-    'weather-sunny': weather.value.condition === 'sunny',
-    'weather-cloudy': weather.value.condition === 'cloudy',
-    'weather-overcast': weather.value.condition === 'overcast',
-    'weather-rain': ['light-rain', 'rain', 'heavy-rain'].includes(weather.value.condition),
-    'weather-snow': weather.value.condition === 'snow',
-    'weather-fog': weather.value.condition === 'fog'
+    'weather-bg': true,
+    [`weather-${condition}`]: true
   }
+})
+
+// 获取图标颜色
+const getIconColor = computed(() => {
+  return 'white'  // 使用白色图标，因为背景都是深色的
 })
 
 // 处理风速显示
@@ -394,7 +636,7 @@ const getTagStyle = (tag: string) => {
         <h2 class="text-2xl font-bold mb-6">最新文章</h2>
 
         <!-- 骨架屏 -->
-        <template v-if="isLoading">
+        <template v-if="loadingStates.articles">
           <div v-for="n in 5" :key="n"
             class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden animate-pulse">
             <div class="flex p-3 gap-3">
@@ -464,7 +706,7 @@ const getTagStyle = (tag: string) => {
       </section>
 
       <!-- 分页控件 -->
-      <div v-if="!isLoading" class="flex justify-center gap-2 mt-8">
+      <div v-if="!loadingStates.articles" class="flex justify-center gap-2 mt-8">
         <button @click="currentPage--" :disabled="currentPage === 1"
           class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50">
           上一页
@@ -479,7 +721,7 @@ const getTagStyle = (tag: string) => {
     <!-- 侧边栏 -->
     <aside class="sidebar">
       <!-- 个人信息卡片骨架屏 -->
-      <template v-if="isLoading">
+      <template v-if="loadingStates.author">
         <div class="sidebar-widget profile-card animate-pulse">
           <div class="profile-header">
             <div class="w-[100px] h-[100px] rounded-full bg-gray-200"></div>
@@ -543,7 +785,7 @@ const getTagStyle = (tag: string) => {
       </template>
 
       <!-- 天气卡片 -->
-      <template v-if="isLoading">
+      <template v-if="loadingStates.weather">
         <!-- 天气卡片骨架屏 -->
         <div class="sidebar-widget weather-card weather-loading animate-pulse">
           <div class="flex items-center gap-4 mb-4">
@@ -565,11 +807,20 @@ const getTagStyle = (tag: string) => {
       <!-- 错误提示 -->
       <template v-else-if="errors.weather">
         <div class="sidebar-widget weather-card">
-          <div class="text-center py-4">
+          <div class="text-center py-4 flex flex-col items-center gap-4">
             <Icon name="carbon:warning" class="text-4xl mb-2" />
-            <p>{{ errors.weather }}</p>
-            <button @click="fetchWeather" class="mt-4 px-4 py-2 text-sm bg-white/20 hover:bg-white/30 rounded-lg">
-              重试
+            <div class="flex flex-col gap-2">
+              <p class="text-sm">{{ errors.weather }}</p>
+              <p class="text-xs opacity-80">
+                {{ errors.weather.includes('需要位置权限') ? '请允许访问您的位置以获取天气信息' : '' }}
+              </p>
+            </div>
+            <button
+              @click="requestLocationPermission"
+              class="px-4 py-2 text-sm bg-white/20 hover:bg-white/30 rounded-lg flex items-center gap-2"
+            >
+              <Icon name="carbon:location" />
+              {{ errors.weather.includes('需要位置权限') ? '授予位置权限' : '重试' }}
             </button>
           </div>
         </div>
@@ -588,7 +839,138 @@ const getTagStyle = (tag: string) => {
             </div>
             <div class="weather-info">
               <div class="temperature">{{ weather.temperature }}°C</div>
-              <div class="location">{{ weather.city }}</div>
+              <div class="location flex items-center gap-2">
+                <span>{{ weather.city }}</span>
+                <UPopover :popper="{ placement: 'right' }">
+                  <UButton
+                    @click="openCitySelect"
+                    variant="ghost"
+                    color="white"
+                    icon="i-carbon-location"
+                    size="xs"
+                    :ui="{ rounded: 'rounded-full' }"
+                    class="!text-white hover:!bg-white/10"
+                  />
+                  <template #content>
+                    <div class="text-sm p-2 text-gray-700">
+                      点击切换城市
+                    </div>
+                  </template>
+                </UPopover>
+              </div>
+
+              <!-- 城市选择弹窗 -->
+              <UModal v-model="citySelectModal">
+                <UCard :ui="{
+                  base: 'w-[90vw] max-w-[800px]',
+                  body: 'p-0',
+                  header: 'px-6 py-4 border-b bg-gray-50'
+                }">
+                  <template #header>
+                    <div class="flex items-center justify-between h-[50px]">
+                      <div class="flex items-center gap-2">
+                        <h3 class="text-base font-medium text-gray-700 ml-6">选择地区</h3>
+                        <div v-if="currentProvince || currentCity" class="text-sm text-gray-500 flex items-center gap-1">
+                          <Icon name="i-carbon-chevron-right" class="w-4 h-4" />
+                          <template v-if="currentProvince">
+                            {{ currentProvince.name }}
+                            <template v-if="currentCity">
+                              <Icon name="i-carbon-chevron-right" class="w-4 h-4" />
+                              {{ currentCity.name }}
+                            </template>
+                          </template>
+                        </div>
+                      </div>
+                      <UButton
+                        color="gray"
+                        variant="ghost"
+                        icon="i-carbon-close"
+                        size="xs"
+                        class="!text-gray-500 hover:!bg-gray-100 mr-6"
+                        @click="citySelectModal = false"
+                      />
+                    </div>
+                  </template>
+
+                  <div class="min-h-[400px] p-6 bg-gray-50/50">
+                    <template v-if="loadingCities">
+                      <div class="flex items-center justify-center h-[200px]">
+                        <ULoading />
+                      </div>
+                    </template>
+                    <template v-else>
+                      <!-- 省份选择 -->
+                      <div v-if="!currentProvince"
+                        class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3 auto-rows-fr"
+                      >
+                        <UButton
+                          v-for="province in provinces"
+                          :key="province.adcode"
+                          variant="soft"
+                          size="sm"
+                          color="gray"
+                          class="min-h-[36px] px-2 py-1.5 text-center flex items-center justify-center hover:bg-gray-100"
+                          @click="handleProvinceSelect(province)"
+                        >
+                          <span class="truncate">{{ province.name }}</span>
+                        </UButton>
+                      </div>
+                      <!-- 城市选择 -->
+                      <div v-else-if="!currentCity">
+                        <div class="flex items-center gap-2 mb-4">
+                          <UButton
+                            variant="link"
+                            @click="currentProvince = null"
+                            icon="i-carbon-arrow-left"
+                            class="text-gray-500 hover:text-gray-700 text-sm"
+                          >
+                            返回省份选择
+                          </UButton>
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 auto-rows-fr">
+                          <UButton
+                            v-for="city in cities"
+                            :key="city.adcode"
+                            variant="soft"
+                            size="sm"
+                            color="gray"
+                            class="min-h-[36px] px-2 py-1.5 text-center flex items-center justify-center hover:bg-gray-100"
+                            @click="handleCitySelect(city)"
+                          >
+                            <span class="truncate">{{ city.name }}</span>
+                          </UButton>
+                        </div>
+                      </div>
+                      <!-- 辖区选择 -->
+                      <div v-else>
+                        <div class="flex items-center gap-2 mb-4">
+                          <UButton
+                            variant="link"
+                            @click="currentCity = null"
+                            icon="i-carbon-arrow-left"
+                            class="text-gray-500 hover:text-gray-700 text-sm"
+                          >
+                            返回城市选择
+                          </UButton>
+                        </div>
+                        <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2">
+                          <UButton
+                            v-for="district in districts"
+                            :key="district.adcode"
+                            variant="soft"
+                            size="sm"
+                            color="gray"
+                            class="h-9 px-3 text-center whitespace-nowrap overflow-hidden text-ellipsis hover:bg-gray-100"
+                            @click="handleDistrictSelect(district)"
+                          >
+                            {{ district.name }}
+                          </UButton>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </UCard>
+              </UModal>
             </div>
           </div>
           <div class="weather-details">
@@ -780,41 +1162,85 @@ const getTagStyle = (tag: string) => {
   position: relative;
   overflow: hidden;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #7f8c8d 0%, #576574 100%);
   color: white;
   transition: all 0.5s ease;
+}
+
+/* 天气背景基础样式 */
+.weather-bg {
+  position: relative;
+  z-index: 1;
+}
+
+.weather-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0.8;
+  z-index: -1;
+  transition: opacity 0.3s ease;
+}
+
+/* 天气背景图片 */
+.weather-sunny::before {
+  background-image: url('https://images.unsplash.com/photo-1592210454359-9043f067919b?q=80&w=1000');
+  background-color: rgba(255, 154, 60, 0.8);
+}
+
+.weather-cloudy::before {
+  background-image: url('https://images.unsplash.com/photo-1534088568595-a066f410bcda?q=80&w=1000');
+  background-color: rgba(107, 138, 253, 0.8);
+}
+
+.weather-overcast::before {
+  background-image: url('https://images.unsplash.com/photo-1483977399921-6cf94f6fdc3a?q=80&w=1000');
+  background-color: rgba(127, 140, 141, 0.8);
+}
+
+.weather-light-rain::before,
+.weather-rain::before,
+.weather-heavy-rain::before {
+  background-image: url('https://images.unsplash.com/photo-1519692933481-e162a57d6721?q=80&w=1000');
+  background-color: rgba(75, 108, 183, 0.8);
+}
+
+.weather-snow::before {
+  background-image: url('https://images.unsplash.com/photo-1491002052546-bf38f186af56?q=80&w=1000');
+  background-color: rgba(142, 158, 171, 0.8);
+}
+
+.weather-fog::before {
+  background-image: url('https://images.unsplash.com/photo-1487621167305-5d248087c724?q=80&w=1000');
+  background-color: rgba(96, 108, 136, 0.8);
+}
+
+/* 添加暗色叠加层，确保文字可读性 */
+.weather-bg::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4));
+  z-index: -1;
+}
+
+/* 鼠标悬停时减少暗色叠加效果 */
+.weather-bg:hover::after {
+  background: linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2));
 }
 
 /* 加载状态的天气卡片样式 */
 .weather-loading {
   background: linear-gradient(135deg, #7f8c8d 0%, #576574 100%);
   opacity: 0.7;
-}
-
-/* 天气主题 - 只在数据加载完成后应用 */
-.weather-sunny {
-  background: linear-gradient(135deg, #ff9a3c 0%, #ff5f2e 100%);
-}
-
-.weather-cloudy {
-  background: linear-gradient(135deg, #6b8afd 0%, #4466f2 100%);
-}
-
-.weather-overcast {
-  background: linear-gradient(135deg, #7f8c8d 0%, #576574 100%);
-}
-
-.weather-rain {
-  background: linear-gradient(135deg, #4b6cb7 0%, #182848 100%);
-}
-
-.weather-snow {
-  background: linear-gradient(135deg, #8e9eab 0%, #eef2f3 100%);
-  color: #2c3e50;
-}
-
-.weather-fog {
-  background: linear-gradient(135deg, #606c88 0%, #3f4c6b 100%);
 }
 
 /* 天气动画 */
@@ -1254,6 +1680,57 @@ const getTagStyle = (tag: string) => {
   .profile-card img {
     width: 80px;
     height: 80px;
+  }
+}
+
+/* 城市选择面板样式 */
+.city-select-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 0.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+}
+
+.city-list {
+  padding: 0.5rem;
+}
+
+.city-item {
+  padding: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 0.25rem;
+}
+
+.city-item:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.location {
+  position: relative;
+}
+
+.loading-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: white;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>
