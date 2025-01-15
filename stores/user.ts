@@ -32,6 +32,7 @@ export const useUserStore = defineStore('user', {
       this.userInfo = null
       if (process.client) {
         localStorage.removeItem('token')
+        localStorage.remoteItem('userInfo')
       }
     },
 
@@ -56,9 +57,8 @@ export const useUserStore = defineStore('user', {
         this.token = token
         try {
           const { $request } = useNuxtApp()
-          const response = await $request.get<ApiResponse<UserInfo>>('/users/info')
-          console.log(response)
-          this.setUserInfo(response.value.data)
+          const {data} = await $request.get('/users/info')
+          this.setUserInfo(data.value)
         } catch (error) {
           this.clearLoginState()
         }

@@ -1,13 +1,11 @@
 <script setup lang="ts">
-import { $request } from '~/plugins/request'
-
-const { fetchApi } = useApi()
+const { $request } = useNuxtApp()
 const loading = ref(false)
 const notifications = ref([])
 const filterUnread = ref(false)
 const notificationStore = useNotificationStore()
 
-definePageMeta({ layout: 'page' })
+definePageMeta({ layout: 'page', name: 'notifications' })
 useHead({ title: '我的通知' })
 
 // 获取通知列表

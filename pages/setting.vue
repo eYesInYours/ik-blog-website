@@ -227,7 +227,7 @@ watch(currentTab, (newTab) => {
   if (newTab === 'favorite') {
     fetchFavoriteArticles()
   } else if (newTab === 'comments') {
-    fetchCommentHistory()
+    // fetchCommentHistory()
   }
 })
 
@@ -281,9 +281,9 @@ function handleClick(id: string) {
           {{ {
             profile: '个人信息',
             favorite: '收藏文章',
-            comments: '评论历史',
-            history: '阅读历史',
-            stats: '阅读统计'
+            // comments: '评论历史',
+            // history: '阅读历史',
+            // stats: '阅读统计'
           }[tab] }}
         </button>
       </div>

@@ -1,8 +1,8 @@
 import type { RouteLocationRaw } from 'vue-router'
 import type { NuxtApp } from 'nuxt/app'
-import {
+import type {
   AwesomeLayoutPageNavbarMenu,
-} from './types'
+} from './types/menu'
 
 export interface NuxtAwesomeAppConfig {
   /** title name */
@@ -26,7 +26,10 @@ export interface NuxtAwesomeAppConfig {
       /** navbar */
       navbar?: {
         /** menus in navbar */
-        menus?: AwesomeLayoutPageNavbarMenu[]
+        menus?: {
+          public?: AwesomeLayoutPageNavbarMenu[]
+          private?: AwesomeLayoutPageNavbarMenu[]
+        }
       }
     }
     /** footer */
@@ -111,32 +114,17 @@ export default defineAppConfig({
     layout: {
       page: {
         navbar: {
-          menus: [
-            { type: 'link', title: '首页', to: { name: 'index' } },
-            { type: 'link', title: '朋友圈', to: { name: 'diary' } },
-            { type: 'link', title: '归档', to: { name: 'archive' } },
-            // { type: 'link', title: 'Post', to: { name: 'post' } },
-            { type: 'button', title: '个人中心', to: { name: 'setting' } },
-            { type: 'icon', title: '消息', to: { name: 'notifications' }, icon: 'material-symbols:notifications-outline-sharp' },
-            // {
-            //   type: 'dropdown',
-            //   title: 'Documentations',
-            //   children: [
-            //     {
-            //       type: 'link',
-            //       title: 'Components',
-            //       to: { name: 'components' },
-            //     },
-            //   ],
-            // },
-            // dynamic title
-            // {
-            //   type: 'button',
-            //   title: (nuxt) =>
-            //     (nuxt._appConfig as AppConfigInput)?.awesome?.name || '',
-            //   to: (nuxt) => (nuxt._appConfig as AppConfigInput)?.awesome?.name || '',
-            // },
-          ],
+          menus: {
+            public: [
+              { type: 'link', title: '首页', to: { name: 'index' } },
+              { type: 'link', title: '朋友圈', to: { name: 'diary' } },
+              { type: 'link', title: '归档', to: { name: 'archive' } }
+            ],
+            private: [
+              { type: 'button', title: '个人中心', to: { name: 'setting' } },
+              { type: 'icon', title: '消息', to: { name: 'notifications' }, icon: 'material-symbols:notifications-outline-sharp' },
+            ]
+          },
         },
       },
       footer: {
@@ -153,14 +141,6 @@ export default defineAppConfig({
           title: 'Github',
           to: 'https://github.com/viandwi24/nuxt3-awesome-starter',
         },
-      },
-    },
-    author: {
-      name: 'viandwi24',
-      links: {
-        github: 'https://github.com/viandwi24',
-        medium: 'https://viandwi24.medium.com',
-        website: 'https://viandwi24.site',
       },
     },
     disableInfoReplaceIndexInWelcomePage: false,
