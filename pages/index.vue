@@ -672,41 +672,55 @@ const getTagStyle = (tag: string) => {
 
         <!-- 文章列表 -->
         <template v-else>
-          <article v-for="article in filteredArticles" :key="article._id"
-            class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-            @click="handleClick(article._id)">
-            <div class="flex p-3 gap-3">
-              <div class="flex-1">
-                <h3 class="article-title">
-                  {{ article.title }}
-                </h3>
-                <p class="article-summary line-clamp-1">
-                  {{ article.content.replace(/<[^>]+>/g, '').slice(0, 200) }}...
-                </p>
-                <div class="flex items-center text-sm text-gray-500">
-                  <span>{{ formatDate(article.createdAt) }}</span>
-                  <span class="mx-2">·</span>
-                  <span>{{ article.author.username }}</span>
-                  <div class="ml-4 flex gap-2">
-                    <span v-for="tag in article.tags" :key="tag" class="px-2 py-0.5 bg-gray-100 rounded-full text-xs">
-                      {{ tag }}
-                    </span>
+          <!-- 无文章时的空状态 -->
+          <template v-if="articles.length === 0">
+            <div class="flex flex-col items-center justify-center py-12 bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+              <Icon name="carbon:document-blank" class="text-6xl text-gray-300 dark:text-gray-600 mb-4" />
+              <h3 class="text-xl font-medium text-gray-600 dark:text-gray-300 mb-2">暂无文章</h3>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                作者正在创作中，敬请期待...
+              </p>
+            </div>
+          </template>
+
+          <!-- 有文章时显示列表 -->
+          <template v-else>
+            <article v-for="article in filteredArticles" :key="article._id"
+              class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+              @click="handleClick(article._id)">
+              <div class="flex p-3 gap-3">
+                <div class="flex-1">
+                  <h3 class="article-title">
+                    {{ article.title }}
+                  </h3>
+                  <p class="article-summary line-clamp-1">
+                    {{ article.content.replace(/<[^>]+>/g, '').slice(0, 200) }}...
+                  </p>
+                  <div class="flex items-center text-sm text-gray-500">
+                    <span>{{ formatDate(article.createdAt) }}</span>
+                    <span class="mx-2">·</span>
+                    <span>{{ article.author.username }}</span>
+                    <div class="ml-4 flex gap-2">
+                      <span v-for="tag in article.tags" :key="tag" class="px-2 py-0.5 bg-gray-100 rounded-full text-xs">
+                        {{ tag }}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <!-- 右侧封面图 -->
-              <div v-if="article.cover" class="w-32 h-24 flex-shrink-0 overflow-hidden rounded">
-                <img :src="article.cover" :alt="article.title"
-                  class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                <!-- 右侧封面图 -->
+                <div v-if="article.cover" class="w-32 h-24 flex-shrink-0 overflow-hidden rounded">
+                  <img :src="article.cover" :alt="article.title"
+                    class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
+                </div>
               </div>
-            </div>
-          </article>
+            </article>
+          </template>
         </template>
       </section>
 
       <!-- 分页控件 -->
-      <div v-if="!loadingStates.articles" class="flex justify-center gap-2 mt-8">
+      <div v-if="!loadingStates.articles && articles.length" class="flex justify-center gap-2 mt-8">
         <button @click="currentPage--" :disabled="currentPage === 1"
           class="px-4 py-2 border rounded hover:bg-gray-100 disabled:opacity-50">
           上一页
