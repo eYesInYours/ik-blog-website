@@ -31,7 +31,7 @@ const handleRegister = async () => {
       username: form.value.username
     })
 
-    router.push('/login')
+    router.push('/')
   } catch (e: any) {
     error.value = e.message || '注册时发生错误'
   } finally {
