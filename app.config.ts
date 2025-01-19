@@ -118,7 +118,8 @@ export default defineAppConfig({
             public: [
               { type: 'link', title: '首页', to: { name: 'index' } },
               { type: 'link', title: '朋友圈', to: { name: 'diary' } },
-              { type: 'link', title: '归档', to: { name: 'archive' } }
+              { type: 'link', title: '归档', to: { name: 'archive' } },
+              { type: 'link', title: '课时管理', to: { name: 'lessons' }, icon: 'i-heroicons-clock' }
             ],
             private: [
               { type: 'button', title: '个人中心', to: { name: 'setting' } },
