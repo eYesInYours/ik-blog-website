@@ -50,6 +50,7 @@
     "highlight.js": "^11.11.1",
     "isomorphic-dompurify": "^2.19.0",
     "marked": "^15.0.5",
+    "marked-highlight": "^2.2.1",
     "pinia": "^2.1.7",
     "sass": "^1.69.5",
     "stringify": "^5.2.0"

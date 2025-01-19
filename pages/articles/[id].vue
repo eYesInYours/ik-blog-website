@@ -25,7 +25,7 @@
         </div>
 
         <!-- 标签 -->
-        <div class="article-tags">
+        <div class="article-tags" v-if="article.tags.length">
           <i class="i-carbon-tag text-gray-400 mr-2" />
           <div class="tags-list">
             <span v-for="tag in article.tags" :key="tag" class="tag" :style="getTagStyle(tag)">
@@ -225,11 +225,13 @@
 
 <script setup lang="ts">
 import { marked } from 'marked'
+import { markedHighlight } from "marked-highlight"
 import hljs from 'highlight.js'
 import 'highlight.js/styles/github.css'
 import DOMPurify from 'isomorphic-dompurify'
 import { useUserStore } from '~/stores/user'
 import { storeToRefs } from 'pinia'
+import type { MarkedOptions } from 'marked'
 
 const { $request } = useNuxtApp()
 const { successToast, warningToast, infoToast, errorToast } = useToastMsg()
@@ -296,17 +298,14 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const submitting = ref(false)
 
-// 配置 marked
-marked.setOptions({
-  highlight: function (code, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      return hljs.highlight(code, { language: lang }).value
-    }
-    return hljs.highlightAuto(code).value
-  },
-  breaks: true,
-  gfm: true
-})
+// 配置 marked 和代码高亮
+marked.use(markedHighlight({
+  langPrefix: 'hljs language-',
+  highlight(code, lang) {
+    const language = hljs.getLanguage(lang) ? lang : 'plaintext';
+    return hljs.highlight(code, { language }).value;
+  }
+}))
 
 // 格式化日期
 const formatDate = (dateString: string) => {
@@ -320,7 +319,6 @@ const formatDate = (dateString: string) => {
 // 处理文章内容
 const sanitizedContent = computed(() => {
   if (!article.value?.content) return ''
-
   const rendered = marked(article.value.content)
   return DOMPurify.sanitize(rendered)
 })
@@ -593,7 +591,7 @@ const getTagStyle = (tag: string) => {
 }
 </script>
 
-<style scoped>
+<style scoped lang="css">
 .article-container {
   max-width: 800px;
   margin: 0 auto;
@@ -653,6 +651,9 @@ const getTagStyle = (tag: string) => {
 }
 
 .article-content {
+  @apply p-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm;
+  max-width: 100%;
+  overflow-x: auto;
   line-height: 1.8;
   color: #333;
 }
@@ -1442,5 +1443,82 @@ const getTagStyle = (tag: string) => {
 
 :root[class~="dark"] .comment-action-btn.liked {
   @apply border-primary-400 text-primary-400;
+}
+
+/* Markdown 样式覆盖 */
+:deep(.markdown-body) {
+  background-color: transparent;
+  font-size: 16px;
+  line-height: 1.8;
+  font-family: system-ui, -apple-system, sans-serif;
+  @apply text-gray-800 dark:text-gray-200;
+
+  /* 标题样式 */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold text-gray-900 dark:text-gray-100 mt-6 mb-4;
+  }
+
+  h1 {
+    @apply text-3xl border-b pb-2;
+  }
+
+  h2 {
+    @apply text-2xl border-b pb-2;
+  }
+
+  h3 {
+    @apply text-xl;
+  }
+
+  h4 {
+    @apply text-lg;
+  }
+
+  h5 {
+    @apply text-base;
+  }
+
+  h6 {
+    @apply text-sm;
+  }
+}
+
+:deep(.markdown-body pre) {
+  background-color: #f6f8fa;
+  border-radius: 0.375rem;
+  padding: 16px;
+  margin: 16px 0;
+  overflow: auto;
+  @apply dark:bg-gray-800;
+}
+
+:deep(.markdown-body code) {
+  background-color: #f6f8fa;
+  border-radius: 0.25rem;
+  padding: 0.2em 0.4em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  @apply dark:bg-gray-800;
+}
+
+:deep(.markdown-body pre code) {
+  background-color: transparent;
+  padding: 0;
+  color: #24292e;
+  @apply dark:text-gray-200;
+}
+
+/* 图片样式 */
+:deep(.markdown-body img) {
+  max-width: 100%;
+  border-radius: 0.375rem;
+  margin: 1rem auto;
+  display: block;
+}
+
+/* 表格样式 */
+:deep(.markdown-body table) {
+  display: block;
+  overflow-x: auto;
+  margin: 1rem 0;
 }
 </style>
