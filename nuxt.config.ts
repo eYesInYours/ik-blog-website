@@ -5,7 +5,7 @@ const { resolve } = createResolver(import.meta.url)
 
 export default defineNuxtConfig({
   ssr: true,// 是否启用服务器端渲染
-  
+
   modules: [
     '@pinia/nuxt',
     '@nuxt/ui',
@@ -43,6 +43,11 @@ export default defineNuxtConfig({
     {
       prefix: 'Awesome',
       path: resolve('./components/awesome'),
+      global: true,
+    },
+    {
+      prefix: 'Article',
+      path: resolve('./components/article'),
       global: true,
     },
   ],
