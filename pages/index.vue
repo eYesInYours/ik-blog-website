@@ -103,7 +103,7 @@ const fetchArticles = async (page = 1) => {
     loadingStates.articles = true
     errors.articles = null
     const { data, error } = await $request.get('/articles', {
-      page,
+        page,
       limit: pagination.value.limit
     })
     if (error.value) throw error.value
@@ -386,7 +386,7 @@ const requestLocationPermission = () => {
   navigator.geolocation.getCurrentPosition(
     (position) => {
       // 用户同意后，直接使用获取到的位置信息
-      const { latitude, longitude } = position.coords
+    const { latitude, longitude } = position.coords
       // 调用天气 API
       getWeatherByLocation(latitude, longitude)
     },
@@ -519,7 +519,7 @@ onMounted(() => {
   // 获取并定时更新天气
   // 先尝试加载缓存数据
   if (!loadCachedWeather()) {
-    fetchWeather()
+  fetchWeather()
   }
   setInterval(fetchWeather, 1800000) // 每30分钟更新一次天气
 })
@@ -686,35 +686,35 @@ const getTagStyle = (tag: string) => {
           <!-- 有文章时显示列表 -->
           <template v-else>
             <article v-for="article in filteredArticles" :key="article._id"
-              class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
+            class="post-card mb-3 bg-white rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
               @click="handleClick(article._id)">
-              <div class="flex p-3 gap-3">
-                <div class="flex-1">
-                  <h3 class="article-title">
-                    {{ article.title }}
-                  </h3>
-                  <p class="article-summary line-clamp-1">
-                    {{ article.content.replace(/<[^>]+>/g, '').slice(0, 200) }}...
-                  </p>
-                  <div class="flex items-center text-sm text-gray-500">
-                    <span>{{ formatDate(article.createdAt) }}</span>
-                    <span class="mx-2">·</span>
-                    <span>{{ article.author.username }}</span>
-                    <div class="ml-4 flex gap-2">
+            <div class="flex p-3 gap-3">
+              <div class="flex-1">
+                <h3 class="article-title">
+                  {{ article.title }}
+                </h3>
+                <p class="article-summary line-clamp-1">
+                  {{ article.content.replace(/<[^>]+>/g, '').slice(0, 200) }}...
+                </p>
+                <div class="flex items-center text-sm text-gray-500">
+                  <span>{{ formatDate(article.createdAt) }}</span>
+                  <span class="mx-2">·</span>
+                  <span>{{ article.author.username }}</span>
+                  <div class="ml-4 flex gap-2">
                       <span v-for="tag in article.tags" :key="tag" class="px-2 py-0.5 bg-gray-100 rounded-full text-xs">
-                        {{ tag }}
-                      </span>
-                    </div>
+                      {{ tag }}
+                    </span>
                   </div>
                 </div>
+              </div>
 
-                <!-- 右侧封面图 -->
+              <!-- 右侧封面图 -->
                 <div v-if="article.cover" class="w-32 h-24 flex-shrink-0 overflow-hidden rounded">
                   <img :src="article.cover" :alt="article.title"
                     class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" />
-                </div>
               </div>
-            </article>
+            </div>
+          </article>
           </template>
         </template>
       </section>
@@ -734,7 +734,7 @@ const getTagStyle = (tag: string) => {
 
     <!-- 侧边栏 -->
     <aside class="sidebar">
-      <!-- 个人信息卡片骨架屏 -->
+        <!-- 个人信息卡片骨架屏 -->
       <template v-if="loadingStates.author">
         <div class="sidebar-widget profile-card animate-pulse">
           <div class="profile-header">
@@ -837,7 +837,7 @@ const getTagStyle = (tag: string) => {
               {{ errors.weather.includes('需要位置权限') ? '授予位置权限' : '重试' }}
             </button>
           </div>
-        </div>
+            </div>
       </template>
 
       <template v-else>
@@ -1299,8 +1299,8 @@ const getTagStyle = (tag: string) => {
   width: 200%;
   height: 100%;
   background: linear-gradient(90deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.2) 50%,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 50%,
       transparent 100%);
   animation: fog 8s linear infinite;
 }
@@ -1464,8 +1464,8 @@ const getTagStyle = (tag: string) => {
   position: absolute;
   inset: 0;
   background: linear-gradient(45deg,
-      transparent 0%,
-      rgba(255, 255, 255, 0.1) 50%,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
       transparent 100%);
   animation: shine 2s infinite;
 }

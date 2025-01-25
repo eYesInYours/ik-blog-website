@@ -11,7 +11,7 @@ export const useAuth = () => {
     try {
       const { data, error } = await $request.post('/auth/login', credentials)
       if (error.value) throw error.value
-      userStore.setLoginState(data.value.token, data.value.user)
+      userStore.setLoginState({ access_token: data.value.access_token, refresh_token: data.value.refresh_token }, data.value.user)
       successToast('登录成功')
     } catch (err) {
       console.error('登录失败:', err)
@@ -24,7 +24,7 @@ export const useAuth = () => {
     try {
       const { data, error } = await $request.post('/auth/register', credentials)
       if (error.value) throw error.value
-      userStore.setLoginState(data.value.token, data.value.user)
+      userStore.setLoginState({ access_token: data.value.access_token, refresh_token: data.value.refresh_token }, data.value.user)
       successToast('注册成功')
     } catch (error) {
       logger.error('注册失败', error)
@@ -61,7 +61,8 @@ export const useAuth = () => {
 
   return {
     userInfo: computed(() => userStore.getUserInfo),
-    token: computed(() => userStore.getToken),
+    access_token: computed(() => userStore.access_token),
+    refresh_token: computed(() => userStore.refresh_token),
     login,
     register,
     logout,

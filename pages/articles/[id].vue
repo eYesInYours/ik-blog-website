@@ -1,224 +1,278 @@
 <template>
-  <div class="article-container">
-    <!-- 加载状态 -->
-    <div v-if="loading" class="loading-state">
-      <div class="loading-spinner" />
-      <span>加载中...</span>
-    </div>
-
-    <!-- 文章内容 -->
-    <template v-else-if="article">
-      <!-- 文章头部 -->
-      <header class="article-header">
-        <h1 class="article-title">{{ article.title }}</h1>
-
-        <div class="article-meta">
-          <div class="author-info">
-            <img
-              :src="article.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${article.author.username}`"
-              :alt="article.author.username" class="author-avatar" />
-            <span class="author-name">{{ article.author.username }}</span>
-          </div>
-          <time :datetime="article.createdAt" class="publish-date">
-            {{ formatDate(article.createdAt) }}
-          </time>
+  <div class="article-container max-w-7xl mx-auto px-4 py-8">
+    <div class="flex gap-8">
+      <!-- 文章内容区 -->
+      <div class="flex-1">
+        <!-- 加载状态 -->
+        <div v-if="loading" class="loading-state">
+          <div class="loading-spinner" />
+          <span>加载中...</span>
         </div>
 
-        <!-- 标签 -->
-        <div class="article-tags" v-if="article.tags.length">
-          <i class="i-carbon-tag text-gray-400 mr-2" />
-          <div class="tags-list">
-            <span v-for="tag in article.tags" :key="tag" class="tag" :style="getTagStyle(tag)">
-              {{ tag }}
-            </span>
-          </div>
-        </div>
-
-        <!-- 文章封面 -->
-        <div v-if="article.cover" class="article-cover">
-          <img :src="article.cover" :alt="article.title" />
-        </div>
-      </header>
-
-      <!-- 文章内容 -->
-      <article class="article-content markdown-body" v-html="sanitizedContent" />
-
-      <!-- 文章操作区 -->
-      <div class="article-actions-wrapper">
-        <div class="article-actions">
-          <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle" :disabled="!token">
-            <i :class="article.isLiked ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" />
-            <span>{{ article.likes || 0 }}</span>
-            <span class="action-label">点赞</span>
-          </button>
-          <button class="action-btn" :class="{ 'collected': article.isCollected }" @click="handleCollectArticle"
-            :disabled="!token">
-            <i :class="article.isCollected ? 'i-carbon-bookmark-filled' : 'i-carbon-bookmark'" />
-            <span>{{ article.collections || 0 }}</span>
-            <span class="action-label">收藏</span>
-          </button>
-          <button class="action-btn" :class="{ 'active': showCommentEditor }" @click="toggleCommentEditor">
-            <i class="i-carbon-chat" />
-            <span>{{ article.comments.length }}</span>
-            <span class="action-label">评论</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- 评论区 -->
-      <section ref="commentsSection" class="comments-section">
-        <div class="comments-header">
-          <h2 class="section-title">评论 ({{ article.comments.length }})</h2>
-          <div class="comments-sort">
-            <button class="sort-btn" :class="{ active: sortBy === 'newest' }" @click="sortBy = 'newest'">
-              最新
-            </button>
-            <button class="sort-btn" :class="{ active: sortBy === 'hottest' }" @click="sortBy = 'hottest'">
-              最热
-            </button>
-          </div>
-        </div>
-
-        <!-- 评论输入区域 -->
-        <div v-show="showCommentEditor" class="comment-editor" :class="{ 'focused': isEditorFocused }">
-          <div class="editor-header" v-if="user?.username">
-            <img :src="user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`"
-              :alt="user.username" class="user-avatar" />
-            <span class="username">{{ user.username }}</span>
-          </div>
-          <div class="editor-body">
-            <textarea v-model="commentContent" placeholder="写下你的评论..." @focus="isEditorFocused = true"
-              @blur="isEditorFocused = false" :disabled="!user?.username"
-              @keydown.ctrl.enter="submitComment"></textarea>
-            <div class="editor-footer" v-if="isEditorFocused || commentContent">
-              <div class="editor-tools">
-                <button class="tool-btn" @click="showEmoji = !showEmoji">
-                  😊
-                </button>
-                <div v-if="showEmoji" class="emoji-picker">
-                  <button v-for="emoji in emojis" :key="emoji" class="emoji-btn" @click="insertEmoji(emoji)">
-                    {{ emoji }}
-                  </button>
-                </div>
+        <!-- 文章内容 -->
+        <template v-else-if="article">
+          <!-- 文章头部 -->
+          <header class="article-header mb-8">
+            <h1 class="text-3xl font-bold mb-4">{{ article.title }}</h1>
+            <div class="article-meta flex items-center gap-4 text-gray-500">
+              <div class="author-info">
+                <img
+                  :src="article.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${article.author.username}`"
+                  :alt="article.author.username" class="author-avatar" />
+                <span class="author-name">{{ article.author.username }}</span>
               </div>
-              <div class="editor-actions">
-                <button class="cancel-btn" @click="resetEditor" v-if="commentContent">
-                  取消
+              <time :datetime="article.createdAt" class="publish-date">
+                {{ formatDate(article.createdAt) }}
+              </time>
+            </div>
+
+            <!-- 标签 -->
+            <div class="article-tags" v-if="article.tags.length">
+              <i class="i-carbon-tag text-gray-400 mr-2" />
+              <div class="tags-list">
+                <span v-for="tag in article.tags" :key="tag" class="tag" :style="getTagStyle(tag)">
+                  {{ tag }}
+                </span>
+              </div>
+            </div>
+
+            <!-- 文章封面 -->
+            <div v-if="article.cover" class="article-cover">
+              <img :src="article.cover" :alt="article.title" />
+            </div>
+          </header>
+
+          <!-- 文章内容 -->
+          <article 
+            ref="articleContent" 
+            class="article-content prose prose-lg dark:prose-invert max-w-none [&>h1]:scroll-mt-24 [&>h2]:scroll-mt-24 [&>h3]:scroll-mt-24" 
+            v-html="sanitizedContent" 
+          />
+
+          <!-- 文章操作区 -->
+          <div class="article-actions-wrapper">
+            <div class="article-actions">
+              <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle" :disabled="!token">
+                <i :class="article.isLiked ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" />
+                <span>{{ article.likes || 0 }}</span>
+                <span class="action-label">点赞</span>
+              </button>
+              <button class="action-btn" :class="{ 'collected': article.isCollected }" @click="handleCollectArticle"
+                :disabled="!token">
+                <i :class="article.isCollected ? 'i-carbon-bookmark-filled' : 'i-carbon-bookmark'" />
+                <span>{{ article.collections || 0 }}</span>
+                <span class="action-label">收藏</span>
+              </button>
+              <button class="action-btn" :class="{ 'active': showCommentEditor }" @click="toggleCommentEditor">
+                <i class="i-carbon-chat" />
+                <span>{{ article.comments.length }}</span>
+                <span class="action-label">评论</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 评论区 -->
+          <section ref="commentsSection" class="comments-section">
+            <div class="comments-header">
+              <h2 class="section-title">评论 ({{ article.comments.length }})</h2>
+              <div class="comments-sort">
+                <button class="sort-btn" :class="{ active: sortBy === 'newest' }" @click="sortBy = 'newest'">
+                  最新
                 </button>
-                <button class="submit-btn" :disabled="!commentContent.trim() || submitting" @click="submitComment">
-                  {{ submitting ? '发送中...' : '发送' }}
+                <button class="sort-btn" :class="{ active: sortBy === 'hottest' }" @click="sortBy = 'hottest'">
+                  最热
                 </button>
               </div>
             </div>
-            <div class="login-tip" v-if="!user?.username">
-              <a @click="navigateTo('/login')">登录</a> 后参与评论
-            </div>
-          </div>
-        </div>
 
-        <!-- 评论列表 -->
-        <div class="comments-list">
-          <div v-if="sortedComments.length > 0" class="comments-container">
-            <div v-for="comment in sortedComments" :key="comment._id" class="comment-item">
-              <div class="comment-main">
-                <div class="comment-header">
-                  <img
-                    :src="comment.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author.username}`"
-                    :alt="comment.author.username" class="comment-avatar" />
-                  <div class="comment-info">
-                    <span class="comment-author">{{ comment.author.username }}</span>
-                    <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
+            <!-- 评论输入区域 -->
+            <div v-show="showCommentEditor" class="comment-editor" :class="{ 'focused': isEditorFocused }">
+              <div class="editor-header" v-if="user?.username">
+                <img :src="user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`"
+                  :alt="user.username" class="user-avatar" />
+                <span class="username">{{ user.username }}</span>
+              </div>
+              <div class="editor-body">
+                <textarea v-model="commentContent" placeholder="写下你的评论..." @focus="isEditorFocused = true"
+                  @blur="isEditorFocused = false" :disabled="!user?.username"
+                  @keydown.ctrl.enter="submitComment"></textarea>
+                <div class="editor-footer" v-if="isEditorFocused || commentContent">
+                  <div class="editor-tools">
+                    <button class="tool-btn" @click="showEmoji = !showEmoji">
+                      😊
+                    </button>
+                    <div v-if="showEmoji" class="emoji-picker">
+                      <button v-for="emoji in emojis" :key="emoji" class="emoji-btn" @click="insertEmoji(emoji)">
+                        {{ emoji }}
+                      </button>
+                    </div>
                   </div>
-                </div>
-                <div class="comment-content">{{ comment.content }}</div>
-                <div class="comment-actions">
-                  <button class="comment-action-btn" :class="{ 'liked': comment.isLiked }"
-                    @click="handleLike(comment._id)" :disabled="!user">
-                    <UIcon :name="comment.isLiked ? 'i-heroicons-hand-thumb-up-solid' : 'i-heroicons-hand-thumb-up'"
-                      class="w-5 h-5" />
-                    <span>{{ comment.likes || 0 }}</span>
-                  </button>
-                  <button class="action-btn" @click="replyTo(comment._id)">
-                    💬 回复
-                  </button>
-                </div>
-
-                <!-- 回复输入框 -->
-                <div v-if="activeReplyKey === comment._id" class="reply-editor">
-                  <textarea v-model="replyContent" :placeholder="`回复 @${comment.author.username}`"
-                    class="reply-textarea" @keydown.ctrl.enter="submitReply(comment)"></textarea>
-                  <div class="reply-actions">
-                    <button class="cancel-btn" @click="cancelReply">取消</button>
-                    <button class="submit-btn" :disabled="!replyContent.trim() || submitting"
-                      @click="submitReply(comment)">
+                  <div class="editor-actions">
+                    <button class="cancel-btn" @click="resetEditor" v-if="commentContent">
+                      取消
+                    </button>
+                    <button class="submit-btn" :disabled="!commentContent.trim() || submitting" @click="submitComment">
                       {{ submitting ? '发送中...' : '发送' }}
                     </button>
                   </div>
                 </div>
+                <div class="login-tip" v-if="!user?.username">
+                  <a @click="navigateTo('/login')">登录</a> 后参与评论
+                </div>
+              </div>
+            </div>
 
-                <!-- 回复列表 -->
-                <div v-if="comment.replies?.length" class="replies-list">
-                  <div v-for="reply in comment.replies" :key="reply._id" class="reply-item">
-                    <div class="reply-header">
+            <!-- 评论列表 -->
+            <div class="comments-list">
+              <div v-if="sortedComments.length > 0" class="comments-container">
+                <div v-for="comment in sortedComments" :key="comment._id" class="comment-item">
+                  <div class="comment-main">
+                    <div class="comment-header">
                       <img
-                        :src="reply.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${reply.author.username}`"
-                        :alt="reply.author.username" class="reply-avatar" />
-                      <div class="reply-info">
-                        <div class="reply-meta">
-                          <span class="reply-author">{{ reply.author.username }}</span>
-                          <template v-if="reply.replyTo">
-                            <span class="reply-to">回复</span>
-                            <span class="reply-to-author">@{{ reply.replyTo.author.username }}</span>
-                          </template>
-                        </div>
-                        <span class="reply-time">{{ formatDate(reply.createdAt) }}</span>
+                        :src="comment.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${comment.author.username}`"
+                        :alt="comment.author.username" class="comment-avatar" />
+                      <div class="comment-info">
+                        <span class="comment-author">{{ comment.author.username }}</span>
+                        <span class="comment-time">{{ formatDate(comment.createdAt) }}</span>
                       </div>
                     </div>
-                    <div class="reply-content">{{ reply.content }}</div>
-                    <div class="reply-actions">
-                      <button class="comment-action-btn" :class="{ 'liked': reply.isLiked }"
-                        @click="handleLike(reply._id)" :disabled="!user">
-                        <UIcon :name="reply.isLiked ? 'i-heroicons-hand-thumb-up-solid' : 'i-heroicons-hand-thumb-up'"
+                    <div class="comment-content">{{ comment.content }}</div>
+                    <div class="comment-actions">
+                      <button class="comment-action-btn" :class="{ 'liked': comment.isLiked }"
+                        @click="handleLike(comment._id)" :disabled="!user">
+                        <UIcon :name="comment.isLiked ? 'i-heroicons-hand-thumb-up-solid' : 'i-heroicons-hand-thumb-up'"
                           class="w-5 h-5" />
-                        <span>{{ reply.likes || 0 }}</span>
+                        <span>{{ comment.likes || 0 }}</span>
                       </button>
-                      <button class="action-btn" @click="replyTo(comment._id, reply)">
+                      <button class="action-btn" @click="replyTo(comment._id)">
                         💬 回复
                       </button>
                     </div>
-                    <!-- 子评论的回复输入框 -->
-                    <div v-if="activeReplyKey === `${comment._id}:${reply._id}`" class="reply-editor">
+
+                    <!-- 回复输入框 -->
+                    <div v-if="activeReplyKey === comment._id" class="reply-editor">
                       <textarea v-model="replyContent" :placeholder="`回复 @${comment.author.username}`"
-                        class="reply-textarea" @keydown.ctrl.enter="submitReply(comment, reply)"></textarea>
+                        class="reply-textarea" @keydown.ctrl.enter="submitReply(comment)"></textarea>
                       <div class="reply-actions">
                         <button class="cancel-btn" @click="cancelReply">取消</button>
                         <button class="submit-btn" :disabled="!replyContent.trim() || submitting"
-                          @click="submitReply(comment, reply)">
+                          @click="submitReply(comment)">
                           {{ submitting ? '发送中...' : '发送' }}
                         </button>
                       </div>
                     </div>
 
+                    <!-- 回复列表 -->
+                    <div v-if="comment.replies?.length" class="replies-list">
+                      <div v-for="reply in comment.replies" :key="reply._id" class="reply-item">
+                        <div class="reply-header">
+                          <img
+                            :src="reply.author.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${reply.author.username}`"
+                            :alt="reply.author.username" class="reply-avatar" />
+                          <div class="reply-info">
+                            <div class="reply-meta">
+                              <span class="reply-author">{{ reply.author.username }}</span>
+                              <template v-if="reply.replyTo">
+                                <span class="reply-to">回复</span>
+                                <span class="reply-to-author">@{{ reply.replyTo.author.username }}</span>
+                              </template>
+                            </div>
+                            <span class="reply-time">{{ formatDate(reply.createdAt) }}</span>
+                          </div>
+                        </div>
+                        <div class="reply-content">{{ reply.content }}</div>
+                        <div class="reply-actions">
+                          <button class="comment-action-btn" :class="{ 'liked': reply.isLiked }"
+                            @click="handleLike(reply._id)" :disabled="!user">
+                            <UIcon :name="reply.isLiked ? 'i-heroicons-hand-thumb-up-solid' : 'i-heroicons-hand-thumb-up'"
+                              class="w-5 h-5" />
+                            <span>{{ reply.likes || 0 }}</span>
+                          </button>
+                          <button class="action-btn" @click="replyTo(comment._id, reply)">
+                            💬 回复
+                          </button>
+                        </div>
+                        <!-- 子评论的回复输入框 -->
+                        <div v-if="activeReplyKey === `${comment._id}:${reply._id}`" class="reply-editor">
+                          <textarea v-model="replyContent" :placeholder="`回复 @${comment.author.username}`"
+                            class="reply-textarea" @keydown.ctrl.enter="submitReply(comment, reply)"></textarea>
+                          <div class="reply-actions">
+                            <button class="cancel-btn" @click="cancelReply">取消</button>
+                            <button class="submit-btn" :disabled="!replyContent.trim() || submitting"
+                              @click="submitReply(comment, reply)">
+                              {{ submitting ? '发送中...' : '发送' }}
+                            </button>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+              <div v-else-if="!loading" class="no-comments">
+                暂无评论，来发表第一条评论吧！
+              </div>
+              <div v-else class="comments-loading">
+                <div class="loading-spinner"></div>
+                <span>加载评论中...</span>
+              </div>
             </div>
-          </div>
-          <div v-else-if="!loading" class="no-comments">
-            暂无评论，来发表第一条评论吧！
-          </div>
-          <div v-else class="comments-loading">
-            <div class="loading-spinner"></div>
-            <span>加载评论中...</span>
+          </section>
+        </template>
+
+        <!-- 错误状态 -->
+        <div v-else-if="error" class="error-state">
+          <p>{{ error }}</p>
+          <button class="retry-button" @click="fetchArticle">重试</button>
+        </div>
+      </div>
+      
+      <!-- 目录导航 -->
+      <div class="w-72 hidden lg:block">
+        <div class="sticky top-24">
+          <div class="toc-container bg-white dark:bg-gray-800 rounded-lg shadow-lg p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-lg font-bold flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                <i class="i-carbon-list text-lg" />
+                目录
+              </h3>
+              <UButton
+                v-if="headings.length > 0"
+                icon="i-carbon-chevron-up"
+                variant="ghost"
+                size="xs"
+                class="hover:bg-gray-100 dark:hover:bg-gray-700"
+                @click="scrollToHeading(headings[0].id)"
+              />
+            </div>
+            
+            <nav class="toc-nav">
+              <ul class="space-y-1">
+                <li v-for="heading in headings" 
+                    :key="heading.id" 
+                    :class="[
+                      'toc-item',
+                      `pl-${(heading.level - 1) * 4}`,
+                      { 'active': activeHeading === heading.id }
+                    ]"
+                >
+                  <a @click="scrollToHeading(heading.id)" 
+                     class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 cursor-pointer transition-colors py-2 px-2 rounded-md block hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  >
+                    {{ heading.text }}
+                  </a>
+                </li>
+              </ul>
+              
+              <!-- 无目录时的提示 -->
+              <div v-if="headings.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
+                暂无目录
+              </div>
+            </nav>
           </div>
         </div>
-      </section>
-    </template>
-
-    <!-- 错误状态 -->
-    <div v-else-if="error" class="error-state">
-      <p>{{ error }}</p>
-      <button class="retry-button" @click="fetchArticle">重试</button>
+      </div>
     </div>
   </div>
 </template>
@@ -232,6 +286,10 @@ import DOMPurify from 'isomorphic-dompurify'
 import { useUserStore } from '~/stores/user'
 import { storeToRefs } from 'pinia'
 import type { MarkedOptions } from 'marked'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import MarkdownIt from 'markdown-it'
+import anchor from 'markdown-it-anchor'
+import toc from 'markdown-it-toc-done-right'
 
 const { $request } = useNuxtApp()
 const { successToast, warningToast, infoToast, errorToast } = useToastMsg()
@@ -297,15 +355,32 @@ const article = ref<Article | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const submitting = ref(false)
+const activeHeading = ref('')
+const headings = ref<Array<{ id: string; text: string; level: number }>>([])
 
-// 配置 marked 和代码高亮
-marked.use(markedHighlight({
-  langPrefix: 'hljs language-',
-  highlight(code, lang) {
-    const language = hljs.getLanguage(lang) ? lang : 'plaintext';
-    return hljs.highlight(code, { language }).value;
+// 初始化 markdown-it
+const md = new MarkdownIt({
+  html: true,
+  highlight: (str, lang) => {
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(str, { language: lang }).value
+      } catch (__) {}
+    }
+    return ''
   }
-}))
+})
+.use(anchor, {
+  permalink: anchor.permalink.linkInsideHeader({
+    symbol: '#',
+    placement: 'before'
+  })
+})
+.use(toc, {
+  level: [1,2,3],
+  listType: 'ul',
+  containerClass: 'toc-list'
+})
 
 // 格式化日期
 const formatDate = (dateString: string) => {
@@ -319,7 +394,8 @@ const formatDate = (dateString: string) => {
 // 处理文章内容
 const sanitizedContent = computed(() => {
   if (!article.value?.content) return ''
-  const rendered = marked(article.value.content)
+  const content = `[[toc]]\n${article.value.content}`
+  const rendered = md.render(content)
   return DOMPurify.sanitize(rendered)
 })
 
@@ -330,6 +406,7 @@ const fetchArticle = async () => {
     const { data, error } = await $request.get(`/articles/${route.params.id}`)
     if (error.value) throw error.value
     article.value = data.value
+    nextTick(() => hljs.highlightAll())
   } catch (err) {
     console.error('获取文章详情失败:', err)
     error.value = err.message || '获取文章详情失败'
@@ -565,6 +642,70 @@ const toggleCommentEditor = () => {
   }
 }
 
+const articleContent = ref<HTMLElement | null>(null)
+
+// 从富文本内容中提取标题
+const extractHeadings = () => {
+  if (!articleContent.value) return
+  
+  const headingElements = articleContent.value.querySelectorAll('h1, h2, h3')
+  headings.value = Array.from(headingElements).map((el, index) => {
+    // 为没有 id 的标题添加 id
+    if (!el.id) {
+      el.id = `heading-${index}`
+    }
+    return {
+      id: el.id,
+      text: el.textContent || '',
+      level: parseInt(el.tagName[1])
+    }
+  })
+}
+
+// 监听滚动，更新当前活动标题
+const updateActiveHeading = () => {
+  if (!articleContent.value) return
+  
+  const headingElements = articleContent.value.querySelectorAll('h1, h2, h3')
+  const scrollPosition = window.scrollY
+
+  for (let i = headingElements.length - 1; i >= 0; i--) {
+    const heading = headingElements[i]
+    const topOffset = heading.getBoundingClientRect().top + window.scrollY - 100
+
+    if (scrollPosition >= topOffset) {
+      activeHeading.value = heading.id
+      break
+    }
+  }
+}
+
+// 点击目录项滚动到对应位置
+const scrollToHeading = (id: string) => {
+  const element = document.getElementById(id)
+  if (element) {
+    window.scrollTo({
+      top: element.getBoundingClientRect().top + window.scrollY - 80,
+      behavior: 'smooth'
+    })
+  }
+}
+
+// 监听内容变化
+watch(() => sanitizedContent.value, () => {
+  nextTick(() => {
+    extractHeadings()
+  })
+}, { immediate: true })
+
+onMounted(() => {
+  window.addEventListener('scroll', updateActiveHeading)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', updateActiveHeading)
+})
+
 fetchArticle()
 
 // 监听路由变化
@@ -591,9 +732,8 @@ const getTagStyle = (tag: string) => {
 }
 </script>
 
-<style scoped lang="css">
+<style lang="scss">
 .article-container {
-  max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
   width: 100%;
@@ -1520,5 +1660,102 @@ const getTagStyle = (tag: string) => {
   display: block;
   overflow-x: auto;
   margin: 1rem 0;
+}
+
+.toc-container {
+  @apply border border-gray-100 dark:border-gray-700;
+  
+  .toc-nav {
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+    
+    /* 自定义滚动条样式 */
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      @apply bg-gray-200 dark:bg-gray-700;
+      border-radius: 4px;
+    }
+    
+    /* Firefox 滚动条样式 */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  
+  .toc-item {
+    &.active > a {
+      @apply text-primary-500 dark:text-primary-400 font-medium bg-primary-50 dark:bg-primary-500/10;
+    }
+    
+    a {
+      display: block;
+      line-height: 1.4;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      position: relative;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 2px;
+        height: 0;
+        @apply bg-primary-500 dark:bg-primary-400;
+        transition: height 0.2s ease;
+      }
+      
+      &:hover::before {
+        height: 70%;
+      }
+    }
+    
+    &.active a::before {
+      height: 70%;
+    }
+  }
+}
+
+/* 暗色模式适配 */
+:root[class~="dark"] {
+  .toc-container {
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* 移动端适配 */
+@media (max-width: 1024px) {
+  .toc-container {
+    display: none;
+  }
+}
+
+/* 隐藏文章内容中自动生成的目录 */
+.article-content .toc-list {
+  display: none;
+}
+
+/* 文章内容样式 */
+.article-content {
+  h1, h2, h3 {
+    scroll-margin-top: 6rem;
+  }
+}
+
+/* 定义CSS变量 */
+:root {
+  --scrollbar-thumb: rgb(229 231 235); /* gray-200 */
+}
+
+:root[class~="dark"] {
+  --scrollbar-thumb: rgb(55 65 81); /* gray-700 */
 }
 </style>
