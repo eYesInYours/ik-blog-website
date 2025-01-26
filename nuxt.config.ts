@@ -55,7 +55,7 @@ export default defineNuxtConfig({
 
   ui: {
     global: true,
-    icons: ['heroicons'],
+    icons: ['heroicons', 'carbon'],
     notifications: {
       position: 'top-right'
     }

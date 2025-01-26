@@ -211,7 +211,7 @@ fetchArchiveData()
       </div>
 
       <!-- 搜索和排序 -->
-      <div class="filter-card">
+      <!-- <div class="filter-card">
         <input
           v-model="searchQuery"
           type="search"
@@ -226,7 +226,7 @@ fetchArchiveData()
         <button @click="sortOrder = sortOrder === 'desc' ? 'asc' : 'desc'">
           {{ sortOrder === 'desc' ? '降序' : '升序' }}
         </button>
-      </div>
+      </div> -->
     </aside>
 
     <!-- 主内容区 -->
@@ -345,30 +345,28 @@ fetchArchiveData()
 .stats-card,
 .nav-card,
 .filter-card {
-  background: white;
-  padding: 1.25rem;
-  border-radius: 0.5rem;
-  margin-bottom: 1rem;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  @apply bg-white dark:bg-gray-800 p-5 rounded-lg mb-4 shadow-sm;
+}
+
+.stats-card h3 {
+  @apply text-gray-900 dark:text-gray-100;
+}
+
+.stats-card p {
+  @apply text-gray-600 dark:text-gray-400;
 }
 
 .tab {
-  width: 100%;
-  padding: 0.75rem 1rem;
-  border-radius: 0.375rem;
-  text-align: left;
-  transition: all 0.2s;
-  border: 1px solid transparent;
-}
-
-.tab:hover {
-  background-color: #f3f4f6;
+  @apply w-full px-4 py-2 rounded-lg text-left transition-colors
+         text-gray-600 dark:text-gray-400
+         hover:bg-gray-100 dark:hover:bg-gray-700
+         border border-transparent;
 }
 
 .tab.active {
-  background-color: #ecfdf5;
-  color: #059669;
-  border-color: #059669;
+  @apply bg-primary-50 dark:bg-primary-900/50
+         text-primary-600 dark:text-primary-400
+         border-primary-500 dark:border-primary-400;
 }
 
 .search-input,
@@ -389,10 +387,7 @@ fetchArchiveData()
 }
 
 .archive-content {
-  background: white;
-  padding: 1.5rem;
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  @apply bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm;
   min-height: calc(100vh - 2rem);
   overflow-y: auto;
   min-width: 0;
@@ -403,16 +398,13 @@ fetchArchiveData()
 .year-header,
 .month-header,
 .category-header {
-  padding: 0.75rem;
-  cursor: pointer;
-  border-radius: 0.375rem;
-  transition: background-color 0.2s;
+  @apply text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg;
 }
 
-.year-header:hover,
-.month-header:hover,
-.category-header:hover {
-  background-color: #f9fafb;
+.year-header span,
+.month-header span,
+.category-header span {
+  @apply text-gray-500 dark:text-gray-400;
 }
 
 .article-list {
@@ -422,36 +414,34 @@ fetchArchiveData()
 }
 
 .article-item {
+  @apply hover:bg-gray-50 dark:hover:bg-gray-700/50;
   margin-bottom: 1rem;
   padding: 0.5rem;
   border-radius: 0.375rem;
   transition: background-color 0.2s;
 }
 
-.article-item:hover {
-  background-color: #f9fafb;
-}
-
 .article-link {
+  @apply text-gray-700 dark:text-gray-300;
   display: flex;
   align-items: center;
   gap: 1rem;
-  color: #374151;
 }
 
 .article-date {
-  color: #6b7280;
+  @apply text-gray-500 dark:text-gray-400;
   font-size: 0.875rem;
   min-width: 90px;
 }
 
 .article-title {
+  @apply text-gray-900 dark:text-gray-100;
   flex: 1;
   font-weight: 500;
 }
 
 .article-meta {
-  color: #6b7280;
+  @apply text-gray-500 dark:text-gray-400;
   font-size: 0.75rem;
   display: flex;
   gap: 1rem;
@@ -464,13 +454,13 @@ fetchArchiveData()
 
 .archive-sidebar::-webkit-scrollbar-thumb,
 .archive-content::-webkit-scrollbar-thumb {
-  background-color: #d1d5db;
+  @apply bg-gray-300 dark:bg-gray-600;
   border-radius: 3px;
 }
 
 .archive-sidebar::-webkit-scrollbar-track,
 .archive-content::-webkit-scrollbar-track {
-  background-color: #f3f4f6;
+  @apply bg-gray-100 dark:bg-gray-800;
 }
 
 .loading-state {
@@ -480,6 +470,10 @@ fetchArchiveData()
   justify-content: center;
   padding-top: 2rem;
   min-width: 280px;
+}
+
+.loading-spinner {
+  @apply text-gray-400 dark:text-gray-500;
 }
 
 @media (max-width: 768px) {

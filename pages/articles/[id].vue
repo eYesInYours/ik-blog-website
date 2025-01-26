@@ -37,28 +37,27 @@
             </div>
 
             <!-- 文章封面 -->
-            <div v-if="article.cover" class="article-cover">
+            <!-- <div v-if="article.cover" class="article-cover">
               <img :src="article.cover" :alt="article.title" />
-            </div>
+            </div> -->
           </header>
 
           <!-- 文章内容 -->
-          <article 
-            ref="articleContent" 
-            class="article-content prose prose-lg dark:prose-invert max-w-none [&>h1]:scroll-mt-24 [&>h2]:scroll-mt-24 [&>h3]:scroll-mt-24" 
-            v-html="sanitizedContent" 
-          />
+          <article ref="articleContent"
+            class="markdown-body article-content prose prose-lg dark:prose-invert max-w-none [&>h1]:scroll-mt-24 [&>h2]:scroll-mt-24 [&>h3]:scroll-mt-24"
+            v-html="sanitizedContent" />
 
           <!-- 文章操作区 -->
           <div class="article-actions-wrapper">
             <div class="article-actions">
-              <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle" :disabled="!token">
+              <button class="action-btn" :class="{ 'liked': article.isLiked }" @click="handleLikeArticle"
+                :disabled="!userStore.getAccessToken">
                 <i :class="article.isLiked ? 'i-carbon-favorite-filled' : 'i-carbon-favorite'" />
                 <span>{{ article.likes || 0 }}</span>
                 <span class="action-label">点赞</span>
               </button>
               <button class="action-btn" :class="{ 'collected': article.isCollected }" @click="handleCollectArticle"
-                :disabled="!token">
+                :disabled="!userStore.getAccessToken">
                 <i :class="article.isCollected ? 'i-carbon-bookmark-filled' : 'i-carbon-bookmark'" />
                 <span>{{ article.collections || 0 }}</span>
                 <span class="action-label">收藏</span>
@@ -184,7 +183,8 @@
                         <div class="reply-actions">
                           <button class="comment-action-btn" :class="{ 'liked': reply.isLiked }"
                             @click="handleLike(reply._id)" :disabled="!user">
-                            <UIcon :name="reply.isLiked ? 'i-heroicons-hand-thumb-up-solid' : 'i-heroicons-hand-thumb-up'"
+                            <UIcon
+                              :name="reply.isLiked ? 'i-heroicons-hand-thumb-up-solid' : 'i-heroicons-hand-thumb-up'"
                               class="w-5 h-5" />
                             <span>{{ reply.likes || 0 }}</span>
                           </button>
@@ -227,7 +227,7 @@
           <button class="retry-button" @click="fetchArticle">重试</button>
         </div>
       </div>
-      
+
       <!-- 目录导航 -->
       <div class="w-72 hidden lg:block">
         <div class="sticky top-24">
@@ -237,34 +237,24 @@
                 <i class="i-carbon-list text-lg" />
                 目录
               </h3>
-              <UButton
-                v-if="headings.length > 0"
-                icon="i-carbon-chevron-up"
-                variant="ghost"
-                size="xs"
-                class="hover:bg-gray-100 dark:hover:bg-gray-700"
-                @click="scrollToHeading(headings[0].id)"
-              />
+              <UButton v-if="headings.length > 0" icon="i-carbon-chevron-up" variant="ghost" size="xs"
+                class="hover:bg-gray-100 dark:hover:bg-gray-700" @click="scrollToHeading(headings[0].id)" />
             </div>
-            
+
             <nav class="toc-nav">
               <ul class="space-y-1">
-                <li v-for="heading in headings" 
-                    :key="heading.id" 
-                    :class="[
-                      'toc-item',
-                      `pl-${(heading.level - 1) * 4}`,
-                      { 'active': activeHeading === heading.id }
-                    ]"
-                >
-                  <a @click="scrollToHeading(heading.id)" 
-                     class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 cursor-pointer transition-colors py-2 px-2 rounded-md block hover:bg-gray-50 dark:hover:bg-gray-700/50"
-                  >
+                <li v-for="heading in headings" :key="heading.id" :class="[
+                  'toc-item',
+                  `pl-${(heading.level - 1) * 4}`,
+                  { 'active': activeHeading === heading.id }
+                ]">
+                  <a @click="scrollToHeading(heading.id)"
+                    class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 cursor-pointer transition-colors py-2 px-2 rounded-md block hover:bg-gray-50 dark:hover:bg-gray-700/50">
                     {{ heading.text }}
                   </a>
                 </li>
               </ul>
-              
+
               <!-- 无目录时的提示 -->
               <div v-if="headings.length === 0" class="text-sm text-gray-500 dark:text-gray-400 text-center py-4">
                 暂无目录
@@ -274,6 +264,10 @@
         </div>
       </div>
     </div>
+
+    <!-- 添加图片预览组件 -->
+    <ImagePreview :visible="previewVisible" :image-src="previewImage.src" :image-alt="previewImage.alt"
+      @close="closePreview" />
   </div>
 </template>
 
@@ -286,10 +280,11 @@ import DOMPurify from 'isomorphic-dompurify'
 import { useUserStore } from '~/stores/user'
 import { storeToRefs } from 'pinia'
 import type { MarkedOptions } from 'marked'
-import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch, computed } from 'vue'
 import MarkdownIt from 'markdown-it'
 import anchor from 'markdown-it-anchor'
 import toc from 'markdown-it-toc-done-right'
+import ImagePreview from '~/components/ImagePreview.vue'
 
 const { $request } = useNuxtApp()
 const { successToast, warningToast, infoToast, errorToast } = useToastMsg()
@@ -365,22 +360,22 @@ const md = new MarkdownIt({
     if (lang && hljs.getLanguage(lang)) {
       try {
         return hljs.highlight(str, { language: lang }).value
-      } catch (__) {}
+      } catch (__) { }
     }
     return ''
   }
 })
-.use(anchor, {
-  permalink: anchor.permalink.linkInsideHeader({
-    symbol: '#',
-    placement: 'before'
+  .use(anchor, {
+    permalink: anchor.permalink.linkInsideHeader({
+      symbol: '#',
+      placement: 'before'
+    })
   })
-})
-.use(toc, {
-  level: [1,2,3],
-  listType: 'ul',
-  containerClass: 'toc-list'
-})
+  .use(toc, {
+    level: [1, 2, 3],
+    listType: 'ul',
+    containerClass: 'toc-list'
+  })
 
 // 格式化日期
 const formatDate = (dateString: string) => {
@@ -406,7 +401,19 @@ const fetchArticle = async () => {
     const { data, error } = await $request.get(`/articles/${route.params.id}`)
     if (error.value) throw error.value
     article.value = data.value
-    nextTick(() => hljs.highlightAll())
+    nextTick(() => {
+      hljs.highlightAll()
+      const articleContent = document.querySelector('.article-content')
+      if (articleContent) {
+        const images = articleContent.querySelectorAll('img')
+        images.forEach(img => {
+          img.style.cursor = 'zoom-in'
+          img.addEventListener('click', () => {
+            openPreview(img.src, img.alt)
+          })
+        })
+      }
+    })
   } catch (err) {
     console.error('获取文章详情失败:', err)
     error.value = err.message || '获取文章详情失败'
@@ -439,7 +446,7 @@ function resetEditor() {
 
 // 提交评论
 async function submitComment() {
-  if (!token.value || !commentContent.value.trim() || submitting.value) return
+  if (!userStore.getAccessToken.value || !commentContent.value.trim() || submitting.value) return
 
   submitting.value = true
   try {
@@ -565,7 +572,7 @@ const handleLike = async (commentId: string) => {
 
 // 处理文章点赞
 const handleLikeArticle = async () => {
-  if (!token.value) {
+  if (!userStore.getAccessToken.value) {
     warningToast('请先登录')
     navigateTo('/login')
     return
@@ -576,19 +583,12 @@ const handleLikeArticle = async () => {
     article.value!.isLiked = !article.value!.isLiked
     article.value!.likes = article.value!.likes + (article.value!.isLiked ? 1 : -1)
 
-    const response = await $request.post<LikeResponse>(`/articles/${article.value?._id}/like`)
+    const {data, error} = await $request.post(`/articles/${article.value?._id}/like`)
 
-    if (response.code === 200) {
-      // 使用服务器返回的实际数据更新
-      article.value!.likes = response.data.likes
-      article.value!.isLiked = response.data.isLiked
-      successToast(response.message)
-    } else {
-      // 如果请求失败，回滚本地状态
-      article.value!.isLiked = !article.value!.isLiked
-      article.value!.likes = article.value!.likes + (article.value!.isLiked ? 1 : -1)
-      errorToast(response.message)
-    }
+    // 使用服务器返回的实际数据更新
+    article.value!.likes = data.value.likes
+    article.value!.isLiked = data.value.isLiked
+    successToast(data.value.message)
   } catch (err) {
     // 发生错误时回滚本地状态
     article.value!.isLiked = !article.value!.isLiked
@@ -600,7 +600,7 @@ const handleLikeArticle = async () => {
 
 // 处理文章收藏
 const handleCollectArticle = async () => {
-  if (!token.value) {
+  if (!userStore.getAccessToken.value) {
     warningToast('请先登录')
     navigateTo('/login')
     return
@@ -647,7 +647,7 @@ const articleContent = ref<HTMLElement | null>(null)
 // 从富文本内容中提取标题
 const extractHeadings = () => {
   if (!articleContent.value) return
-  
+
   const headingElements = articleContent.value.querySelectorAll('h1, h2, h3')
   headings.value = Array.from(headingElements).map((el, index) => {
     // 为没有 id 的标题添加 id
@@ -665,7 +665,7 @@ const extractHeadings = () => {
 // 监听滚动，更新当前活动标题
 const updateActiveHeading = () => {
   if (!articleContent.value) return
-  
+
   const headingElements = articleContent.value.querySelectorAll('h1, h2, h3')
   const scrollPosition = window.scrollY
 
@@ -700,10 +700,22 @@ watch(() => sanitizedContent.value, () => {
 
 onMounted(() => {
   window.addEventListener('scroll', updateActiveHeading)
+  nextTick(() => {
+
+  })
 })
 
 onUnmounted(() => {
   window.removeEventListener('scroll', updateActiveHeading)
+  const articleContent = document.querySelector('.article-content')
+  if (articleContent) {
+    const images = articleContent.querySelectorAll('img')
+    images.forEach(img => {
+      img.removeEventListener('click', () => {
+        openPreview(img.src, img.alt)
+      })
+    })
+  }
 })
 
 fetchArticle()
@@ -730,6 +742,24 @@ const getTagStyle = (tag: string) => {
     borderColor: `hsl(${hue}, 70%, 90%)`
   }
 }
+
+// 图片预览状态
+const previewVisible = ref(false)
+const previewImage = ref({
+  src: '',
+  alt: ''
+})
+
+// 打开预览
+const openPreview = (src: string, alt: string = '') => {
+  previewImage.value = { src, alt }
+  previewVisible.value = true
+}
+
+// 关闭预览
+const closePreview = () => {
+  previewVisible.value = false
+}
 </script>
 
 <style lang="scss">
@@ -743,14 +773,14 @@ const getTagStyle = (tag: string) => {
   margin-bottom: 2rem;
 }
 
-.article-title {
+:deep(.article-title) {
   font-size: 2.5rem;
   font-weight: 700;
   margin-bottom: 1rem;
   line-height: 1.3;
 }
 
-.article-meta {
+:deep(.article-meta) {
   display: flex;
   align-items: center;
   gap: 1rem;
@@ -1586,7 +1616,7 @@ const getTagStyle = (tag: string) => {
 }
 
 /* Markdown 样式覆盖 */
-:deep(.markdown-body) {
+.article-content.markdown-body {
   background-color: transparent;
   font-size: 16px;
   line-height: 1.8;
@@ -1594,7 +1624,12 @@ const getTagStyle = (tag: string) => {
   @apply text-gray-800 dark:text-gray-200;
 
   /* 标题样式 */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-bold text-gray-900 dark:text-gray-100 mt-6 mb-4;
   }
 
@@ -1621,15 +1656,38 @@ const getTagStyle = (tag: string) => {
   h6 {
     @apply text-sm;
   }
-}
 
-:deep(.markdown-body pre) {
-  background-color: #f6f8fa;
-  border-radius: 0.375rem;
-  padding: 16px;
-  margin: 16px 0;
-  overflow: auto;
-  @apply dark:bg-gray-800;
+  pre {
+    background-color: #ffffff !important;
+    border-radius: 0.375rem;
+    padding: 16px;
+    margin: 16px 0;
+    overflow: auto;
+    @apply dark:bg-gray-800;
+  }
+
+  img {
+    @apply max-w-full rounded-lg mx-auto my-4 !important;
+    height: 260px !important;
+    width: 100% !important;
+    object-fit: cover !important;
+    cursor: zoom-in !important;
+    transition: transform 0.2s ease !important;
+
+    &:hover {
+      transform: scale(1.01);
+    }
+
+    @media (max-width: 768px) {
+      height: 200px !important;
+    }
+  }
+
+  /* 图片容器样式 */
+  p:has(> img) {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
 }
 
 :deep(.markdown-body code) {
@@ -1647,14 +1705,6 @@ const getTagStyle = (tag: string) => {
   @apply dark:text-gray-200;
 }
 
-/* 图片样式 */
-:deep(.markdown-body img) {
-  max-width: 100%;
-  border-radius: 0.375rem;
-  margin: 1rem auto;
-  display: block;
-}
-
 /* 表格样式 */
 :deep(.markdown-body table) {
   display: block;
@@ -1664,35 +1714,35 @@ const getTagStyle = (tag: string) => {
 
 .toc-container {
   @apply border border-gray-100 dark:border-gray-700;
-  
+
   .toc-nav {
     max-height: calc(100vh - 250px);
     overflow-y: auto;
-    
+
     /* 自定义滚动条样式 */
     &::-webkit-scrollbar {
       width: 4px;
     }
-    
+
     &::-webkit-scrollbar-track {
       background: transparent;
     }
-    
+
     &::-webkit-scrollbar-thumb {
       @apply bg-gray-200 dark:bg-gray-700;
       border-radius: 4px;
     }
-    
+
     /* Firefox 滚动条样式 */
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
   }
-  
+
   .toc-item {
-    &.active > a {
+    &.active>a {
       @apply text-primary-500 dark:text-primary-400 font-medium bg-primary-50 dark:bg-primary-500/10;
     }
-    
+
     a {
       display: block;
       line-height: 1.4;
@@ -1700,7 +1750,7 @@ const getTagStyle = (tag: string) => {
       overflow: hidden;
       text-overflow: ellipsis;
       position: relative;
-      
+
       &::before {
         content: '';
         position: absolute;
@@ -1712,12 +1762,12 @@ const getTagStyle = (tag: string) => {
         @apply bg-primary-500 dark:bg-primary-400;
         transition: height 0.2s ease;
       }
-      
+
       &:hover::before {
         height: 70%;
       }
     }
-    
+
     &.active a::before {
       height: 70%;
     }
@@ -1745,17 +1795,29 @@ const getTagStyle = (tag: string) => {
 
 /* 文章内容样式 */
 .article-content {
-  h1, h2, h3 {
+
+  h1,
+  h2,
+  h3 {
     scroll-margin-top: 6rem;
   }
 }
 
 /* 定义CSS变量 */
 :root {
-  --scrollbar-thumb: rgb(229 231 235); /* gray-200 */
+  --scrollbar-thumb: rgb(229 231 235);
+  /* gray-200 */
 }
 
 :root[class~="dark"] {
-  --scrollbar-thumb: rgb(55 65 81); /* gray-700 */
+  --scrollbar-thumb: rgb(55 65 81);
+  /* gray-700 */
+}
+
+/* 禁用 prose 的默认图片样式 */
+.prose {
+  img {
+    margin: 0 !important;
+  }
 }
 </style>
