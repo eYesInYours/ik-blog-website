@@ -3,8 +3,8 @@
     <div v-if="visible" class="image-preview-overlay" @click="close">
       <div class="image-preview-content" @click.stop>
         <img 
-          :src="imageSrc" 
-          :alt="imageAlt" 
+          :src="image" 
+          :alt="alt" 
           class="preview-image" 
           :style="imageStyle"
           @wheel.prevent="handleWheel"
@@ -42,15 +42,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 
-const props = defineProps<{
-  visible: boolean
-  imageSrc: string
-  imageAlt?: string
-}>()
+const props = defineProps({
+  visible: {
+    type: Boolean,
+    required: true
+  },
+  image: {
+    type: String,
+    required: true
+  },
+  alt: {
+    type: String,
+    default: ''
+  }
+})
 
-const emit = defineEmits<{
-  close: []
-}>()
+const emit = defineEmits(['update:visible', 'close'])
 
 // 图片变换状态
 const scale = ref(1)
@@ -63,6 +70,7 @@ const imageStyle = computed(() => ({
 
 // 关闭预览
 const close = () => {
+  emit('update:visible', false)
   emit('close')
   resetTransform()
 }
@@ -95,12 +103,12 @@ const resetTransform = () => {
 // 下载图片
 const downloadImage = async () => {
   try {
-    const response = await fetch(props.imageSrc)
+    const response = await fetch(props.image)
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = props.imageAlt || 'image'
+    a.download = props.alt || 'image'
     document.body.appendChild(a)
     a.click()
     document.body.removeChild(a)
@@ -113,35 +121,66 @@ const downloadImage = async () => {
 
 <style lang="scss" scoped>
 .image-preview-overlay {
-  @apply fixed inset-0 z-50 
-         flex items-center justify-center 
-         bg-black/80 backdrop-blur-sm;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(2px);
 }
 
 .image-preview-content {
-  @apply relative max-w-[90vw] max-h-[90vh];
-}
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
 
-.preview-image {
-  @apply max-w-full max-h-[90vh] 
-         object-contain rounded-lg;
-  transition: transform 0.3s ease;
-}
+  .preview-image {
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+  }
 
-.toolbar {
-  @apply absolute bottom-4 left-1/2 -translate-x-1/2
-         flex items-center gap-2 px-4 py-2
-         bg-black/50 backdrop-blur-sm rounded-full;
-}
+  .toolbar {
+    position: absolute;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    border-radius: 9999px;
+  }
 
-.tool-btn {
-  @apply w-10 h-10 rounded-full
-         flex items-center justify-center
-         text-white/80 hover:text-white
-         hover:bg-white/10 transition-colors;
+  .tool-btn {
+    width: 2.5rem;
+    height: 2.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    border: none;
+    background: transparent;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.2s ease;
 
-  &.close-btn {
-    @apply hover:bg-red-500/30;
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    i {
+      font-size: 1.25rem;
+    }
+
+    &.close-btn:hover {
+      background-color: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
   }
 }
 
@@ -158,12 +197,21 @@ const downloadImage = async () => {
 
 /* 移动端适配 */
 @media (max-width: 768px) {
-  .toolbar {
-    @apply bottom-8 px-2 py-1 gap-1;
-  }
+  .image-preview-content {
+    .toolbar {
+      bottom: 4rem;
+      padding: 0.25rem;
+      gap: 0.25rem;
+    }
 
-  .tool-btn {
-    @apply w-8 h-8;
+    .tool-btn {
+      width: 2rem;
+      height: 2rem;
+
+      i {
+        font-size: 1rem;
+      }
+    }
   }
 }
 </style> 

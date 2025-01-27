@@ -45,7 +45,7 @@
           <!-- 文章内容 -->
           <article ref="articleContent"
             class="markdown-body article-content prose prose-lg dark:prose-invert max-w-none [&>h1]:scroll-mt-24 [&>h2]:scroll-mt-24 [&>h3]:scroll-mt-24"
-            v-html="sanitizedContent" />
+            v-html="safeContent" />
 
           <!-- 文章操作区 -->
           <div class="article-actions-wrapper">
@@ -243,13 +243,17 @@
 
             <nav class="toc-nav">
               <ul class="space-y-1">
-                <li v-for="heading in headings" :key="heading.id" :class="[
-                  'toc-item',
-                  `pl-${(heading.level - 1) * 4}`,
-                  { 'active': activeHeading === heading.id }
-                ]">
+                <li v-for="heading in headings" 
+                    :key="heading.id" 
+                    :class="[
+                      'toc-item',
+                      `heading-level-${heading.level}`,
+                      { 'active': activeHeading === heading.id }
+                    ]"
+                >
                   <a @click="scrollToHeading(heading.id)"
-                    class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 cursor-pointer transition-colors py-2 px-2 rounded-md block hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                     class="text-sm text-gray-600 dark:text-gray-400 hover:text-primary-500 dark:hover:text-primary-400 cursor-pointer transition-colors py-2 px-2 rounded-md block hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  >
                     {{ heading.text }}
                   </a>
                 </li>
@@ -266,8 +270,12 @@
     </div>
 
     <!-- 添加图片预览组件 -->
-    <ImagePreview :visible="previewVisible" :image-src="previewImage.src" :image-alt="previewImage.alt"
-      @close="closePreview" />
+    <ImagePreview 
+      v-model:visible="previewVisible"
+      :image="previewImage.src"
+      :alt="previewImage.alt"
+      @close="closePreview"
+    />
   </div>
 </template>
 
@@ -353,45 +361,96 @@ const submitting = ref(false)
 const activeHeading = ref('')
 const headings = ref<Array<{ id: string; text: string; level: number }>>([])
 
-// 初始化 markdown-it
-const md = new MarkdownIt({
-  html: true,
-  highlight: (str, lang) => {
-    if (lang && hljs.getLanguage(lang)) {
-      try {
-        return hljs.highlight(str, { language: lang }).value
-      } catch (__) { }
-    }
-    return ''
-  }
-})
-  .use(anchor, {
-    permalink: anchor.permalink.linkInsideHeader({
-      symbol: '#',
-      placement: 'before'
-    })
-  })
-  .use(toc, {
-    level: [1, 2, 3],
-    listType: 'ul',
-    containerClass: 'toc-list'
-  })
-
-// 格式化日期
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
+// 配置 DOMPurify 允许的标签和属性
+const purifyConfig = {
+  ALLOWED_TAGS: [
+    // 基础文本标签
+    'p', 'div', 'span', 'br', 'hr',
+    // 标题标签
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    // 格式化标签
+    'strong', 'em', 'del', 'ins', 'mark', 'sub', 'sup',
+    // 列表标签
+    'ul', 'ol', 'li',
+    // 代码标签
+    'pre', 'code',
+    // 引用标签
+    'blockquote',
+    // 链接和图片
+    'a', 'img',
+    // 表格标签
+    'table', 'thead', 'tbody', 'tr', 'th', 'td'
+  ],
+  ALLOWED_ATTR: [
+    'href', 'src', 'alt', 'title', 'class', 'id', 
+    'width', 'height', 'target', 'rel',
+    'style'  // 允许基本样式
+  ],
+  ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|data|blob):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  ADD_TAGS: ['iframe'],  // 允许 iframe，用于嵌入视频等
+  ADD_ATTR: ['allowfullscreen', 'frameborder', 'sandbox'],  // iframe 相关属性
+  FORBID_TAGS: ['script', 'style', 'form', 'input', 'textarea', 'button'],
+  FORBID_ATTR: ['onerror', 'onload', 'onclick']
 }
 
-// 处理文章内容
-const sanitizedContent = computed(() => {
+// 图片预览状态
+const previewVisible = ref(false)
+const previewImage = ref({
+  src: '',
+  alt: ''
+})
+
+// 打开预览
+const openPreview = (src: string, alt: string) => {
+  previewImage.value = { src, alt }
+  previewVisible.value = true
+}
+
+// 关闭预览
+const closePreview = () => {
+  previewVisible.value = false
+}
+
+// 安全过滤文章内容
+const safeContent = computed(() => {
   if (!article.value?.content) return ''
-  const content = `[[toc]]\n${article.value.content}`
-  const rendered = md.render(content)
-  return DOMPurify.sanitize(rendered)
+  
+  try {
+    const cleanHtml = DOMPurify.sanitize(article.value.content, purifyConfig)
+    
+    if (!import.meta.client) {
+      return cleanHtml
+    }
+    
+    const tempDiv = document.createElement('div')
+    tempDiv.innerHTML = cleanHtml
+    
+    // 处理图片点击预览
+    tempDiv.querySelectorAll('img').forEach(img => {
+      // 添加样式类和属性
+      img.classList.add('preview-image')
+      img.style.cursor = 'zoom-in'
+      // 使用 data 属性存储原始图片信息
+      img.dataset.src = img.src
+      img.dataset.alt = img.alt || ''
+      
+      // 移除可能存在的旧事件监听器
+      img.replaceWith(img.cloneNode(true))
+    })
+    
+    // 处理外部链接
+    tempDiv.querySelectorAll('a').forEach(link => {
+      if (link.host !== window.location.host) {
+        link.setAttribute('target', '_blank')
+        link.setAttribute('rel', 'noopener noreferrer')
+      }
+    })
+    
+    return tempDiv.innerHTML
+  } catch (error) {
+    console.error('内容清理错误:', error)
+    return ''
+  }
 })
 
 // 获取文章数据
@@ -401,22 +460,16 @@ const fetchArticle = async () => {
     const { data, error } = await $request.get(`/articles/${route.params.id}`)
     if (error.value) throw error.value
     article.value = data.value
-    nextTick(() => {
-      hljs.highlightAll()
-      const articleContent = document.querySelector('.article-content')
-      if (articleContent) {
-        const images = articleContent.querySelectorAll('img')
-        images.forEach(img => {
-          img.style.cursor = 'zoom-in'
-          img.addEventListener('click', () => {
-            openPreview(img.src, img.alt)
-          })
-        })
-      }
-    })
+    
+    // 只在客户端执行代码高亮
+    if (import.meta.client) {
+      nextTick(() => {
+        hljs.highlightAll()
+      })
+    }
   } catch (err) {
     console.error('获取文章详情失败:', err)
-    error.value = err.message || '获取文章详情失败'
+    error.value = '获取文章详情失败'
   } finally {
     loading.value = false
   }
@@ -646,11 +699,10 @@ const articleContent = ref<HTMLElement | null>(null)
 
 // 从富文本内容中提取标题
 const extractHeadings = () => {
-  if (!articleContent.value) return
+  if (!articleContent.value || !import.meta.client) return
 
-  const headingElements = articleContent.value.querySelectorAll('h1, h2, h3')
+  const headingElements = articleContent.value.querySelectorAll('h1, h2, h3, h4, h5, h6')
   headings.value = Array.from(headingElements).map((el, index) => {
-    // 为没有 id 的标题添加 id
     if (!el.id) {
       el.id = `heading-${index}`
     }
@@ -692,29 +744,37 @@ const scrollToHeading = (id: string) => {
 }
 
 // 监听内容变化
-watch(() => sanitizedContent.value, () => {
-  nextTick(() => {
-    extractHeadings()
-  })
-}, { immediate: true })
+watch(() => article.value?.content, () => {
+  if (import.meta.client) {
+    nextTick(() => {
+      extractHeadings()
+      hljs.highlightAll()
+    })
+  }
+})
 
 onMounted(() => {
-  window.addEventListener('scroll', updateActiveHeading)
-  nextTick(() => {
-
-  })
+  if (import.meta.client) {
+    window.addEventListener('scroll', updateActiveHeading)
+    nextTick(() => {
+      extractHeadings()
+      hljs.highlightAll()
+    })
+    // 使用事件委托处理图片点击
+    document.querySelector('.article-content')?.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'IMG') {
+        const img = target as HTMLImageElement
+        openPreview(img.dataset.src || img.src, img.dataset.alt || img.alt || '')
+      }
+    })
+  }
 })
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', updateActiveHeading)
-  const articleContent = document.querySelector('.article-content')
-  if (articleContent) {
-    const images = articleContent.querySelectorAll('img')
-    images.forEach(img => {
-      img.removeEventListener('click', () => {
-        openPreview(img.src, img.alt)
-      })
-    })
+  if (import.meta.client) {
+    window.removeEventListener('scroll', updateActiveHeading)
+    document.querySelector('.article-content')?.removeEventListener('click', () => {})
   }
 })
 
@@ -742,27 +802,9 @@ const getTagStyle = (tag: string) => {
     borderColor: `hsl(${hue}, 70%, 90%)`
   }
 }
-
-// 图片预览状态
-const previewVisible = ref(false)
-const previewImage = ref({
-  src: '',
-  alt: ''
-})
-
-// 打开预览
-const openPreview = (src: string, alt: string = '') => {
-  previewImage.value = { src, alt }
-  previewVisible.value = true
-}
-
-// 关闭预览
-const closePreview = () => {
-  previewVisible.value = false
-}
 </script>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .article-container {
   margin: 0 auto;
   padding: 2rem;
@@ -1688,6 +1730,82 @@ const closePreview = () => {
     margin-left: 0 !important;
     margin-right: 0 !important;
   }
+
+  // 链接样式
+  a {
+    color: var(--el-color-primary);
+    text-decoration: none;
+    position: relative;
+    font-weight: 500;
+    padding: 0.1em 0.2em;
+    margin: 0 0.1em;
+    border-radius: 0.2em;
+    background-image: linear-gradient(
+      transparent 0%,
+      transparent 90%,
+      var(--el-color-primary-light-8) 90%,
+      var(--el-color-primary-light-8) 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 0% 100%;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background-size: 100% 100%;
+      color: var(--el-color-primary-dark-2);
+
+      &[target="_blank"]::after {
+        transform: translate(2px, -2px);
+      }
+    }
+
+    // 外部链接的箭头标记
+    &[target="_blank"]::after {
+      content: "↗";
+      display: inline-block;
+      margin-left: 0.2em;
+      font-size: 0.9em;
+      transition: transform 0.3s ease;
+      vertical-align: text-top;
+    }
+  }
+
+  // 暗色模式下的链接样式
+  :root[class~="dark"] & {
+    a {
+      background-image: linear-gradient(
+        transparent 0%,
+        transparent 90%,
+        var(--el-color-primary-light-9) 90%,
+        var(--el-color-primary-light-9) 100%
+      );
+
+      &:hover {
+        color: var(--el-color-primary-light-3);
+        background-color: rgba(var(--el-color-primary-rgb), 0.1);
+      }
+    }
+  }
+
+  // 代码块内的链接样式重置
+  pre, code {
+    a {
+      color: inherit;
+      background-image: none;
+      padding: 0;
+      margin: 0;
+      font-weight: inherit;
+
+      &:hover {
+        background-size: 0;
+        color: inherit;
+      }
+
+      &[target="_blank"]::after {
+        content: none;
+      }
+    }
+  }
 }
 
 :deep(.markdown-body code) {
@@ -1718,6 +1836,7 @@ const closePreview = () => {
   .toc-nav {
     max-height: calc(100vh - 250px);
     overflow-y: auto;
+    overflow-x: hidden;
 
     /* 自定义滚动条样式 */
     &::-webkit-scrollbar {
@@ -1736,40 +1855,64 @@ const closePreview = () => {
     /* Firefox 滚动条样式 */
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
-  }
 
-  .toc-item {
-    &.active>a {
-      @apply text-primary-500 dark:text-primary-400 font-medium bg-primary-50 dark:bg-primary-500/10;
+    // 目录项容器
+    ul {
+      width: 100%;
     }
 
-    a {
-      display: block;
-      line-height: 1.4;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      position: relative;
-
-      &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 2px;
-        height: 0;
-        @apply bg-primary-500 dark:bg-primary-400;
-        transition: height 0.2s ease;
+    // 目录项
+    .toc-item {
+      a {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        width: 100%;
+        display: block;
       }
 
-      &:hover::before {
-        height: 70%;
+      &.heading-level-1 {
+        padding-left: 0.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
       }
-    }
+      
+      &.heading-level-2 {
+        padding-left: 1.5rem;
+        font-size: 1rem;
+        font-weight: 500;
+      }
+      
+      &.heading-level-3 {
+        padding-left: 2.5rem;
+        font-size: 0.95rem;
+        font-weight: 400;
+      }
+      
+      &.heading-level-4 {
+        padding-left: 3.5rem;
+        font-size: 0.9rem;
+        font-weight: 400;
+        opacity: 0.9;
+      }
+      
+      &.heading-level-5 {
+        padding-left: 4.5rem;
+        font-size: 0.85rem;
+        font-weight: 400;
+        opacity: 0.85;
+      }
+      
+      &.heading-level-6 {
+        padding-left: 5.5rem;
+        font-size: 0.8rem;
+        font-weight: 400;
+        opacity: 0.8;
+      }
 
-    &.active a::before {
-      height: 70%;
+      &.active > a {
+        @apply text-primary-500 dark:text-primary-400 font-medium bg-primary-50 dark:bg-primary-500/10;
+      }
     }
   }
 }
@@ -1818,6 +1961,67 @@ const closePreview = () => {
 .prose {
   img {
     margin: 0 !important;
+  }
+}
+
+:deep(.markdown-body) {
+  // 代码块样式
+  pre {
+    margin: 1rem 0;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    background-color: #f6f8fa !important; // 浅灰色背景
+    overflow-x: auto;
+    border: 1px solid #e5e7eb;
+
+    code {
+      background-color: transparent;
+      padding: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 0.9em;
+      line-height: 1.5;
+      color: #24292e;
+    }
+  }
+
+  // 内联代码样式
+  code:not(pre code) {
+    background-color: #f6f8fa;
+    border-radius: 0.25rem;
+    padding: 0.2em 0.4em;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.9em;
+    color: #24292e;
+    border: 1px solid #e5e7eb;
+  }
+
+  // 暗色模式
+  :root[class~="dark"] & {
+    pre {
+      background-color: #1e1e1e !important; // 深色但不是纯黑
+      border-color: #374151;
+
+      code {
+        color: #e5e7eb;
+      }
+    }
+
+    code:not(pre code) {
+      background-color: #374151;
+      border-color: #4b5563;
+      color: #e5e7eb;
+    }
+  }
+
+  // 图片样式
+  img {
+    cursor: zoom-in;
+    transition: transform 0.2s ease;
+    border-radius: 0.5rem;
+    
+    &:hover {
+      transform: scale(1.01);
+    }
   }
 }
 </style>
