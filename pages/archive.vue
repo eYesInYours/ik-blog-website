@@ -79,8 +79,8 @@ const archiveData = ref<ArchiveData>({
 const fetchArchiveData = async () => {
   loading.value = true
   try {
-    const {data,error} = await $request.get('/articles/archives', {
-        type: activeTab.value
+    const { data, error } = await $request.get('/articles/archives', {
+      type: activeTab.value
     })
     archiveData.value = data.value
   } catch (error) {
@@ -174,59 +174,52 @@ watch(activeTab, () => {
 
 // 初始化
 fetchArchiveData()
+
+const navItems = [
+  { type: 'date', label: '时间归档', icon: 'i-carbon-calendar' },
+  { type: 'tag', label: '标签归档', icon: 'i-carbon-tag' },
+  { type: 'category', label: '分类归档', icon: 'i-carbon-folder' }
+]
 </script>
 
 <template>
   <div class="archive-layout">
     <!-- 侧边栏 -->
     <aside class="archive-sidebar">
-      <!-- 统计信息 -->
-      <div class="stats-card">
-        <h3 class="text-lg font-semibold mb-2">统计信息</h3>
-        <p>文章总数：{{ archiveData?.total || 0 }}</p>
-      </div>
+      <!-- 侧边栏导航 -->
+      <div class="sidebar-menu">
+        <!-- 统计信息 -->
+        <div class="stats-card">
+          <div class="stats-header">
+            <i class="i-carbon-analytics text-lg" />
+            <span>统计信息</span>
+          </div>
+          <div class="stats-content">
+            <div class="stats-item">
+              <i class="i-carbon-document text-lg" />
+              <span>文章总数：</span>
+              <span class="stats-number">{{ archiveData?.total || 0 }}</span>
+            </div>
+          </div>
+        </div>
 
-      <!-- 归档导航 -->
-      <div class="nav-card">
-        <div class="tabs">
-          <button
-            :class="['tab', { active: activeTab === 'date' }]"
-            @click="activeTab = 'date'"
+        <!-- 归档导航 -->
+        <div class="archive-nav">
+          <button 
+            v-for="(item, index) in navItems" 
+            :key="index"
+            class="nav-btn"
+            :class="{ active: activeTab === item.type }"
+            @click="activeTab = item.type"
           >
-            时间归档
-          </button>
-          <button
-            :class="['tab', { active: activeTab === 'tag' }]"
-            @click="activeTab = 'tag'"
-          >
-            标签归档
-          </button>
-          <button
-            :class="['tab', { active: activeTab === 'category' }]"
-            @click="activeTab = 'category'"
-          >
-            分类归档
+            <div class="btn-content">
+              <i :class="item.icon" />
+              <span>{{ item.label }}</span>
+            </div>
+            <div class="btn-indicator" />
           </button>
         </div>
       </div>
-
-      <!-- 搜索和排序 -->
-      <!-- <div class="filter-card">
-        <input
-          v-model="searchQuery"
-          type="search"
-          placeholder="搜索文章..."
-          class="search-input"
-        />
-        <select v-model="sortBy" class="sort-select">
-          <option value="date">按日期</option>
-          <option value="views">按阅读量</option>
-          <option value="comments">按评论数</option>
-        </select>
-        <button @click="sortOrder = sortOrder === 'desc' ? 'asc' : 'desc'">
-          {{ sortOrder === 'desc' ? '降序' : '升序' }}
-        </button>
-      </div> -->
     </aside>
 
     <!-- 主内容区 -->
@@ -239,20 +232,27 @@ fetchArchiveData()
         <!-- 标签归档视图 -->
         <template v-if="activeTab === 'tag'">
           <div v-for="archive in archiveData.archives" :key="archive.tag" class="archive-section">
-            <div class="tag-header">
-              <h3 class="text-lg font-medium">
+            <div class="parent-category">
+              <h3 class="parent-title">
+                <i class="i-carbon-tag text-xl" />
                 {{ archive.tag }}
-                <span class="text-sm text-gray-500">({{ archive.count }})</span>
+                <span class="count">({{ archive.count }})</span>
               </h3>
             </div>
             <div class="article-list">
               <div v-for="article in archive.articles" :key="article._id" class="article-item">
                 <NuxtLink :to="`/articles/${article._id}`" class="article-link">
-                  <span class="article-date">{{ formatDate(article.createdAt) }}</span>
-                  <span class="article-title">{{ article.title }}</span>
+                  <time class="article-date">{{ formatDate(article.createdAt) }}</time>
+                  <h5 class="article-title">{{ article.title }}</h5>
                   <div class="article-meta">
-                    <span>{{ article.likes }} 赞</span>
-                    <span>{{ article.comments }} 评论</span>
+                    <span class="meta-item" :title="`${article.likes} 人点赞`">
+                      <i class="i-carbon-favorite text-sm" />
+                      {{ article.likes }} 赞
+                    </span>
+                    <span class="meta-item" :title="`${article.comments} 条评论`">
+                      <i class="i-carbon-chat text-sm" />
+                      {{ article.comments }} 评论
+                    </span>
                   </div>
                 </NuxtLink>
               </div>
@@ -263,25 +263,36 @@ fetchArchiveData()
         <!-- 时间归档视图 -->
         <template v-else-if="activeTab === 'date'">
           <div v-for="year in archiveData.archives" :key="year.year" class="archive-section">
-            <div class="year-header" @click="toggleYear(year.year.toString())">
-              <h3 class="text-lg font-medium">
+            <div class="parent-category">
+              <h3 class="parent-title">
+                <i class="i-carbon-calendar text-xl" />
                 {{ year.year }}年
-                <span class="text-sm text-gray-500">({{ year.count }})</span>
+                <span class="count">({{ year.count }})</span>
               </h3>
             </div>
-            <div v-if="expandedYears.has(year.year.toString())" class="year-content">
-              <div v-for="month in year.months" :key="`${year.year}-${month.month}`" class="month-section">
-                <div class="month-header">
-                  {{ month.month }}月 ({{ month.count }})
+            <div class="children-categories">
+              <div v-for="month in year.months" :key="`${year.year}-${month.month}`" class="child-category">
+                <div class="child-header">
+                  <h4 class="child-title">
+                    <i class="i-carbon-calendar-heat-map text-lg" />
+                    {{ month.month }}月
+                    <span class="count">({{ month.count }})</span>
+                  </h4>
                 </div>
                 <div class="article-list">
                   <div v-for="article in month.articles" :key="article._id" class="article-item">
                     <NuxtLink :to="`/articles/${article._id}`" class="article-link">
-                      <span class="article-date">{{ formatDate(article.createdAt) }}</span>
-                      <span class="article-title">{{ article.title }}</span>
+                      <time class="article-date">{{ formatDate(article.createdAt) }}</time>
+                      <h5 class="article-title">{{ article.title }}</h5>
                       <div class="article-meta">
-                        <span>{{ article.likes }} 赞</span>
-                        <span>{{ article.comments }} 评论</span>
+                        <span class="meta-item" :title="`${article.likes} 人点赞`">
+                          <i class="i-carbon-favorite text-sm" />
+                          {{ article.likes }} 赞
+                        </span>
+                        <span class="meta-item" :title="`${article.comments} 条评论`">
+                          <i class="i-carbon-chat text-sm" />
+                          {{ article.comments }} 评论
+                        </span>
                       </div>
                     </NuxtLink>
                   </div>
@@ -294,22 +305,45 @@ fetchArchiveData()
         <!-- 分类归档视图 -->
         <template v-else>
           <div v-for="archive in archiveData.archives" :key="archive.category" class="archive-section">
-            <div class="category-header">
-              <h3 class="text-lg font-medium">
+            <!-- 父分类 -->
+            <div class="parent-category">
+              <h3 class="parent-title">
+                <i class="i-carbon-folder text-xl" />
                 {{ archive.categoryName }}
-                <span class="text-sm text-gray-500">({{ archive.count }})</span>
+                <span class="count">({{ archive.count }})</span>
               </h3>
             </div>
-            <div class="article-list">
-              <div v-for="article in archive.articles" :key="article._id" class="article-item">
-                <NuxtLink :to="`/articles/${article._id}`" class="article-link">
-                  <span class="article-date">{{ formatDate(article.createdAt) }}</span>
-                  <span class="article-title">{{ article.title }}</span>
-                  <div class="article-meta">
-                    <span>{{ article.likes }} 赞</span>
-                    <span>{{ article.comments }} 评论</span>
+            
+            <!-- 子分类列表 -->
+            <div class="children-categories">
+              <div v-for="childCategory in archive.children" :key="childCategory.category" class="child-category">
+                <div class="child-header">
+                  <h4 class="child-title">
+                    <i class="i-carbon-folder-details text-lg" />
+                    {{ childCategory.categoryName }}
+                    <span class="count">({{ childCategory.count }})</span>
+                  </h4>
+                </div>
+                
+                <!-- 文章列表 -->
+                <div class="article-list">
+                  <div v-for="article in childCategory.articles" :key="article._id" class="article-item">
+                    <NuxtLink :to="`/articles/${article._id}`" class="article-link">
+                      <time class="article-date">{{ formatDate(article.createdAt) }}</time>
+                      <h5 class="article-title">{{ article.title }}</h5>
+                      <div class="article-meta">
+                        <span class="meta-item" :title="`${article.likes} 人点赞`">
+                          <i class="i-carbon-favorite text-sm" />
+                          {{ article.likes }} 赞
+                        </span>
+                        <span class="meta-item" :title="`${article.comments} 条评论`">
+                          <i class="i-carbon-chat text-sm" />
+                          {{ article.comments }} 评论
+                        </span>
+                      </div>
+                    </NuxtLink>
                   </div>
-                </NuxtLink>
+                </div>
               </div>
             </div>
           </div>
@@ -357,16 +391,11 @@ fetchArchiveData()
 }
 
 .tab {
-  @apply w-full px-4 py-2 rounded-lg text-left transition-colors
-         text-gray-600 dark:text-gray-400
-         hover:bg-gray-100 dark:hover:bg-gray-700
-         border border-transparent;
+  @apply w-full px-4 py-2 rounded-lg text-left transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 border border-transparent;
 }
 
 .tab.active {
-  @apply bg-primary-50 dark:bg-primary-900/50
-         text-primary-600 dark:text-primary-400
-         border-primary-500 dark:border-primary-400;
+  @apply bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 border-primary-500 dark:border-primary-400;
 }
 
 .search-input,
@@ -502,6 +531,197 @@ fetchArchiveData()
     flex: 1;
     min-width: 120px;
     text-align: center;
+  }
+}
+
+.archive-section {
+  @apply mb-8 last:mb-0;
+
+  .parent-category {
+    @apply bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-4;
+
+    .parent-title {
+      @apply flex items-center gap-2 text-xl font-medium text-gray-900 dark:text-gray-100;
+      
+      i {
+        @apply text-primary-500 dark:text-primary-400;
+      }
+      
+      .count {
+        @apply text-sm font-normal text-gray-500 dark:text-gray-400;
+      }
+    }
+  }
+
+  .children-categories {
+    @apply space-y-4 pl-6;
+
+    .child-category {
+      @apply bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-sm;
+
+      .child-header {
+        @apply p-3 border-b border-gray-100 dark:border-gray-700;
+
+        .child-title {
+          @apply flex items-center gap-2 text-base font-medium text-gray-800 dark:text-gray-200;
+          
+          i {
+            @apply text-gray-400 dark:text-gray-500;
+          }
+          
+          .count {
+            @apply text-sm font-normal text-gray-500 dark:text-gray-400;
+          }
+        }
+      }
+    }
+  }
+}
+
+.article-list {
+  @apply divide-y divide-gray-100 dark:divide-gray-700;
+
+  .article-item {
+    @apply transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50;
+
+    .article-link {
+      @apply p-3 flex items-center gap-4 text-sm;
+      
+      .article-date {
+        @apply w-24 text-gray-500 dark:text-gray-400 shrink-0;
+      }
+      
+      .article-title {
+        @apply flex-1 text-gray-700 dark:text-gray-300 hover:text-primary-500 
+               dark:hover:text-primary-400 transition-colors truncate;
+      }
+      
+      .article-meta {
+        @apply flex items-center gap-4 shrink-0;
+        
+        .meta-item {
+          @apply flex items-center gap-1.5 text-gray-500 dark:text-gray-400 min-w-[4.5rem]
+                 hover:text-primary-500 dark:hover:text-primary-400 transition-colors;
+          
+          i {
+            @apply text-gray-400 dark:text-gray-500;
+          }
+
+          &:hover i {
+            @apply text-primary-500 dark:text-primary-400;
+          }
+        }
+      }
+    }
+  }
+}
+
+.count {
+  @apply ml-2;
+}
+
+.sidebar-menu {
+  @apply flex flex-col gap-4;
+}
+
+.stats-card {
+  @apply bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden
+         border border-gray-100 dark:border-gray-700;
+
+  .stats-header {
+    @apply flex items-center gap-2.5 px-5 py-3.5 
+           border-b border-gray-100 dark:border-gray-700
+           bg-gray-50 dark:bg-gray-700/50;
+
+    i {
+      @apply text-primary-500 dark:text-primary-400;
+    }
+
+    span {
+      @apply text-base font-medium text-gray-900 dark:text-gray-100;
+    }
+  }
+
+  .stats-content {
+    @apply p-5;
+
+    .stats-item {
+      @apply flex items-center gap-2;
+
+      i {
+        @apply text-gray-400 dark:text-gray-500;
+      }
+
+      span {
+        @apply text-gray-600 dark:text-gray-400;
+      }
+
+      .stats-number {
+        @apply text-primary-500 dark:text-primary-400 font-medium;
+      }
+    }
+  }
+}
+
+.archive-nav {
+  @apply bg-white dark:bg-gray-800 rounded-xl p-2.5 shadow-sm
+         border border-gray-100 dark:border-gray-700 space-y-1;
+
+  .nav-btn {
+    @apply relative w-full px-4 py-3 rounded-lg transition-all
+           text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50;
+
+    .btn-content {
+      @apply flex items-center gap-3;
+
+      i {
+        @apply text-lg text-gray-400 dark:text-gray-500 transition-colors;
+      }
+
+      span {
+        @apply font-medium;
+      }
+    }
+
+    &:hover {
+      @apply text-primary-500 dark:text-primary-400;
+
+      i {
+        @apply text-primary-500 dark:text-primary-400;
+      }
+    }
+
+    &.active {
+      @apply bg-primary-50 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400;
+
+      i {
+        @apply text-primary-500 dark:text-primary-400;
+      }
+
+      &::after {
+        content: '';
+        @apply absolute right-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5
+               bg-primary-500 dark:bg-primary-400 rounded-full;
+      }
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .archive-nav {
+    @apply flex flex-row gap-2 p-2;
+
+    .nav-btn {
+      @apply flex-1 min-w-[100px];
+
+      .btn-content {
+        @apply justify-center;
+      }
+
+      &.active::after {
+        @apply hidden;
+      }
+    }
   }
 }
 </style>

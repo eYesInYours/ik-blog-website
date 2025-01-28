@@ -33,6 +33,7 @@ interface Article {
   comments: any[]
   createdAt: string
   updatedAt: string
+  categoryName?: string
 }
 
 interface ArticleResponse {
@@ -684,22 +685,22 @@ const getTagStyle = (tag: string) => {
           </template>
 
           <!-- 有文章时显示列表 -->
-          <template v-else>
-            <article 
-              v-for="article in filteredArticles" 
-              :key="article._id"
+        <template v-else>
+          <article
+            v-for="article in filteredArticles"
+            :key="article._id"
               class="post-card bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
-              @click="handleClick(article._id)"
-            >
+            @click="handleClick(article._id)"
+          >
               <div class="flex p-4 gap-4">
                 <!-- 文章内容区 -->
                 <div class="flex-1 min-w-0">
                   <h3 class="text-gray-900 dark:text-gray-100 font-medium text-lg mb-2 line-clamp-2">
-                    {{ article.title }}
-                  </h3>
+                  {{ article.title }}
+                </h3>
                   <p class="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
-                    {{ article.content.replace(/<[^>]+>/g, '').slice(0, 200) }}...
-                  </p>
+                  {{ article.content.replace(/<[^>]+>/g, '').slice(0, 200) }}...
+                </p>
                   <div class="flex items-center flex-wrap gap-2 text-sm">
                     <span class="text-gray-500 dark:text-gray-400">
                       {{ formatDate(article.createdAt) }}
@@ -708,31 +709,37 @@ const getTagStyle = (tag: string) => {
                     <span class="text-gray-500 dark:text-gray-400">
                       {{ article.author.username }}
                     </span>
+                    <span v-if="article.categoryName" class="text-gray-300 dark:text-gray-600">·</span>
+                    <span v-if="article.categoryName" 
+                      class="text-primary-500 dark:text-primary-400 hover:text-primary-600 dark:hover:text-primary-300"
+                    >
+                      {{ article.categoryName }}
+                    </span>
                     <div class="flex flex-wrap gap-2 ml-auto">
-                      <span 
-                        v-for="tag in article.tags" 
-                        :key="tag"
+                    <span
+                      v-for="tag in article.tags"
+                      :key="tag"
                         class="px-2 py-0.5 bg-gray-100 dark:bg-gray-700 rounded-full text-xs text-gray-600 dark:text-gray-300"
-                      >
-                        {{ tag }}
-                      </span>
-                    </div>
+                    >
+                      {{ tag }}
+                    </span>
                   </div>
                 </div>
-
-                <!-- 右侧封面图 -->
-                <div 
-                  v-if="article.cover" 
-                  class="w-32 h-24 flex-shrink-0 rounded overflow-hidden"
-                >
-                  <img 
-                    :src="article.cover" 
-                    :alt="article.title"
-                    class="w-full h-full object-cover hover:scale-105 transition-transform duration-300" 
-                  />
-                </div>
               </div>
-            </article>
+
+              <!-- 右侧封面图 -->
+              <div
+                v-if="article.cover"
+                  class="w-32 h-24 flex-shrink-0 rounded overflow-hidden"
+              >
+                <img
+                  :src="article.cover"
+                  :alt="article.title"
+                  class="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+                />
+              </div>
+            </div>
+          </article>
           </template>
         </template>
       </section>

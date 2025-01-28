@@ -24,6 +24,13 @@
               <time :datetime="article.createdAt" class="publish-date">
                 {{ formatDate(article.createdAt) }}
               </time>
+              <!-- 添加分类名称 -->
+              <template v-if="article.categoryName">
+                <span class="text-gray-300 dark:text-gray-600">·</span>
+                <span class="text-primary-500 dark:text-primary-400">
+                  {{ article.categoryName }}
+                </span>
+              </template>
             </div>
 
             <!-- 标签 -->
@@ -319,6 +326,8 @@ interface Article {
   _id: string
   title: string
   content: string
+  category: string
+  categoryName?: string
   cover: string
   author: Author
   tags: string[]
