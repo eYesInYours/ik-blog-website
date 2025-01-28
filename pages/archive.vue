@@ -357,16 +357,82 @@ const navItems = [
   </div>
 </template>
 
-<style scoped>
+<style lang="scss" scoped>
 .archive-layout {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem;
-  display: grid;
-  grid-template-columns: 280px 1fr;
-  gap: 1.5rem;
-  min-height: calc(100vh - 4rem);
-  min-width: 320px;
+  @apply max-w-7xl mx-auto px-4 py-8 grid gap-6;
+  grid-template-columns: 280px 800px; // 固定两列宽度
+}
+
+.archive-content {
+  @apply bg-white dark:bg-gray-800 rounded-lg p-6 shadow-sm;
+  width: 800px; // 固定宽度
+}
+
+.article-list {
+  @apply divide-y divide-gray-100 dark:divide-gray-700;
+  width: 100%;
+
+  .article-item {
+    @apply transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50;
+
+    .article-link {
+      @apply p-3 flex items-center gap-4 text-sm;
+      
+      .article-date {
+        width: 100px; // 固定日期宽度
+        @apply text-gray-500 dark:text-gray-400 shrink-0 font-medium;
+      }
+      
+      .article-title {
+        width: 400px; // 固定标题宽度
+        @apply text-gray-700 dark:text-gray-300 
+               hover:text-primary-500 dark:hover:text-primary-400 
+               transition-colors font-medium truncate;
+      }
+      
+      .article-meta {
+        width: 200px; // 固定统计区域宽度
+        @apply flex items-center gap-4;
+        
+        .meta-item {
+          width: 90px; // 固定每个统计项宽度
+          @apply flex items-center gap-1.5 text-gray-500 dark:text-gray-400 
+                 hover:text-primary-500 dark:hover:text-primary-400 transition-colors;
+        }
+      }
+    }
+  }
+}
+
+@media (max-width: 1200px) {
+  .archive-layout {
+    grid-template-columns: 240px 800px; // 较小屏幕时只减小侧边栏宽度
+  }
+}
+
+@media (max-width: 1080px) {
+  .archive-layout {
+    @apply grid-cols-1 items-start; // 单列布局
+  }
+
+  .archive-content {
+    width: 100%; // 移动端占满宽度
+    max-width: 800px; // 但不超过最大宽度
+    margin: 0 auto;
+  }
+
+  .article-link {
+    @apply flex-col items-start;
+    
+    .article-title {
+      width: 100% !important; // 移动端标题占满宽度
+    }
+    
+    .article-meta {
+      width: 100% !important; // 移动端统计信息占满宽度
+      @apply justify-start;
+    }
+  }
 }
 
 .archive-sidebar {
@@ -413,15 +479,6 @@ const navItems = [
   outline: none;
   border-color: #059669;
   ring: 2px solid #059669;
-}
-
-.archive-content {
-  @apply bg-white dark:bg-gray-800 p-6 rounded-lg shadow-sm;
-  min-height: calc(100vh - 2rem);
-  overflow-y: auto;
-  min-width: 0;
-  width: 100%;
-  min-width: 600px;
 }
 
 .year-header,
@@ -505,35 +562,6 @@ const navItems = [
   @apply text-gray-400 dark:text-gray-500;
 }
 
-@media (max-width: 768px) {
-  .archive-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .archive-sidebar {
-    position: static;
-    height: auto;
-    min-height: auto;
-    margin-bottom: 1.5rem;
-  }
-
-  .archive-content {
-    min-height: calc(100vh - 20rem);
-    min-width: 300px;
-  }
-
-  .tabs {
-    flex-direction: row;
-    flex-wrap: wrap;
-  }
-
-  .tab {
-    flex: 1;
-    min-width: 120px;
-    text-align: center;
-  }
-}
-
 .archive-section {
   @apply mb-8 last:mb-0;
 
@@ -571,44 +599,6 @@ const navItems = [
           
           .count {
             @apply text-sm font-normal text-gray-500 dark:text-gray-400;
-          }
-        }
-      }
-    }
-  }
-}
-
-.article-list {
-  @apply divide-y divide-gray-100 dark:divide-gray-700;
-
-  .article-item {
-    @apply transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50;
-
-    .article-link {
-      @apply p-3 flex items-center gap-4 text-sm;
-      
-      .article-date {
-        @apply w-24 text-gray-500 dark:text-gray-400 shrink-0;
-      }
-      
-      .article-title {
-        @apply flex-1 text-gray-700 dark:text-gray-300 hover:text-primary-500 
-               dark:hover:text-primary-400 transition-colors truncate;
-      }
-      
-      .article-meta {
-        @apply flex items-center gap-4 shrink-0;
-        
-        .meta-item {
-          @apply flex items-center gap-1.5 text-gray-500 dark:text-gray-400 min-w-[4.5rem]
-                 hover:text-primary-500 dark:hover:text-primary-400 transition-colors;
-          
-          i {
-            @apply text-gray-400 dark:text-gray-500;
-          }
-
-          &:hover i {
-            @apply text-primary-500 dark:text-primary-400;
           }
         }
       }
