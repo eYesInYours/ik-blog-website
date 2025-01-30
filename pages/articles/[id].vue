@@ -531,7 +531,7 @@ const replyContent = ref('')
 
 // 修改 replyTo 函数，支持回复某条回复
 function replyTo(commentId: string, reply?: Comment) {
-  if (!token.value) {
+  if (!userStore.getAccessToken.value) {
     navigateTo('/login')
     return
   }
@@ -554,7 +554,7 @@ async function fetchComments() {
 
 // 提交回复
 async function submitReply(comment: Comment, replyTo?: Comment) {
-  if (!token.value || !replyContent.value.trim() || submitting.value) return
+  if (!userStore.getAccessToken.value || !replyContent.value.trim() || submitting.value) return
 
   submitting.value = true
   try {
