@@ -303,7 +303,10 @@ import ImagePreview from '~/components/ImagePreview.vue'
 
 const { $request } = useNuxtApp()
 const { successToast, warningToast, infoToast, errorToast } = useToastMsg()
-definePageMeta({ layout: 'page' })
+definePageMeta({ 
+  layout: 'page',
+  keepalive: true,
+ })
 useHead({ title: '文章详情' })
 const toast = useToast()
 
@@ -469,7 +472,13 @@ const fetchArticle = async () => {
     const { data, error } = await $request.get(`/articles/${route.params.id}`)
     if (error.value) throw error.value
     article.value = data.value
-    
+    useHead({
+      title: article.value?.title,
+      meta: [
+        { name: 'description', content: article.value?.content.slice(0, 100) },
+        { name: 'keywords', content: article.value?.tags.join(',') }
+      ]
+    })
     // 只在客户端执行代码高亮
     if (import.meta.client) {
       nextTick(() => {
@@ -790,9 +799,9 @@ onUnmounted(() => {
 fetchArticle()
 
 // 监听路由变化
-watch(() => route.params.id, () => {
-  fetchArticle()
-})
+// watch(() => route.params.id, () => {
+//   fetchArticle()
+// })
 
 // 评论区域引用
 const commentsSection = ref<HTMLElement | null>(null)
