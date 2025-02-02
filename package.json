@@ -57,6 +57,7 @@
     "marked-highlight": "^2.2.1",
     "pinia": "^2.1.7",
     "sass": "^1.69.5",
+    "sitemap": "^8.0.0",
     "stringify": "^5.2.0"
   },
   "devDependencies": {

@@ -820,6 +820,24 @@ const getTagStyle = (tag: string) => {
     borderColor: `hsl(${hue}, 70%, 90%)`
   }
 }
+
+// 在获取文章数据后设置 meta 标签
+watch(() => article.value, (newArticle) => {
+  if (newArticle) {
+    useHead({
+      title: newArticle.title,
+      meta: [
+        { name: 'description', content: newArticle.content.slice(0, 200) },
+        { name: 'keywords', content: newArticle.tags.join(',') },
+        // Open Graph tags
+        { property: 'og:title', content: newArticle.title },
+        { property: 'og:description', content: newArticle.content.slice(0, 200) },
+        { property: 'og:type', content: 'article' },
+        { property: 'og:url', content: `http://ikchen.top/articles/${route.params.id}` }
+      ]
+    })
+  }
+}, { immediate: true })
 </script>
 
 <style lang="scss" scoped>

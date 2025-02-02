@@ -79,4 +79,10 @@ export default defineNuxtConfig({
   plugins: [
     '~/plugins/request.ts',
   ],
+
+  nitro: {
+    prerender: {
+      routes: ['/sitemap.xml']
+    }
+  }
 })
