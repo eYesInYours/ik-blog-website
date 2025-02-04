@@ -60,7 +60,7 @@ export default defineNuxtConfig({
 
   ui: {
     global: true,
-    icons: ['heroicons'],
+    icons: ['heroicons', 'carbon'],
     notifications: {
       position: 'top-right'
     }
@@ -82,6 +82,12 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-01-10',
 
   plugins: [
-    '~/plugins/request.ts'
+    '~/plugins/request.ts',
   ],
+
+  nitro: {
+    prerender: {
+      routes: ['/sitemap.xml']
+    }
+  }
 })

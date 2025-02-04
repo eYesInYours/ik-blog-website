@@ -29,7 +29,7 @@ const isNotificationIcon = computed(() => {
 
 // 检查是否应该显示通知功能
 const shouldShowNotification = computed(() => {
-  return isNotificationIcon.value && userStore.token
+  return isNotificationIcon.value && !!userStore.getAccessToken.value
 })
 
 // 获取未读通知数
@@ -42,16 +42,15 @@ const fetchUnreadCount = async () => {
   try {
     const { data, error } = await $request.get('/notifications/unread-count')
     if (error.value) throw error.value
-    if (data.value?.code === 200) {
-      notificationStore.setUnreadCount(data.value.data.count)
-    }
+    console.log('data',data)
+    notificationStore.setUnreadCount(data.value?.count)
   } catch (err) {
     console.error('获取未读通知数失败:', err)
   }
 }
 
 // 监听登录状态变化
-watch(() => userStore.isLoggedIn, (newVal) => {
+watch(() => userStore.getAccessToken.value, (newVal) => {
   if (newVal) {
     fetchUnreadCount()
   } else {
@@ -103,15 +102,54 @@ onUnmounted(() => {
   <template v-else-if="menu?.type === 'icon'">
     <NuxtLink :to="parseMenuRoute(menu.to)" #="{ isActive }"
       class="relative inline-flex items-center py-2 text-gray-600 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400"
-      :class="{
-        'text-gray-900 dark:text-gray-100': isActive,
-      }" :title="parseMenuTitle(menu.title)">
+      :title="parseMenuTitle(menu.title)">
       <UIcon :name="menu.icon" class="text-xl" />
       <!-- 通知徽标 -->
-      <span v-if="shouldShowNotification && notificationStore.unreadCount > 0"
-        class="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] text-xs text-white bg-red-500 rounded-full px-1">
+      <span
+        v-if="shouldShowNotification && !!notificationStore.unreadCount"
+        class="notification-badge"
+      >
         {{ notificationStore.unreadCount > 99 ? '99+' : notificationStore.unreadCount }}
       </span>
     </NuxtLink>
   </template>
 </template>
+
+<style lang="scss" scoped>
+.notification-badge {
+  @apply absolute top-0 -right-1
+         min-w-[14px] h-[14px]
+         flex items-center justify-center
+         text-[10px] font-medium leading-none
+         text-white bg-red-500
+         rounded-full px-1;
+
+  /* 添加动画效果 */
+  animation: badge-pulse 2s infinite;
+
+  /* 超出省略号 */
+  &:has(> span) {
+    @apply truncate;
+    max-width: 26px;
+  }
+}
+
+@keyframes badge-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* 暗色模式 */
+:root[class~="dark"] {
+  .notification-badge {
+    @apply bg-red-600;
+  }
+}
+</style>

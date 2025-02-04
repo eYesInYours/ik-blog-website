@@ -17,9 +17,7 @@ const fetchNotifications = async () => {
       isRead: filterUnread.value ? 'false' : undefined
     })
     if (error.value) throw error.value
-    if (data.value?.code === 200) {
-      notifications.value = data.value.data.notifications
-    }
+    notifications.value = data.value.notifications
   } catch (err) {
     console.error('获取通知失败:', err)
   } finally {
@@ -32,12 +30,10 @@ const markAsRead = async (id: string) => {
   try {
     const { data, error } = await $request.put(`/notifications/${id}/read`)
     if (error.value) throw error.value
-    if (data.value?.code === 200) {
-      const notification = notifications.value.find(n => n._id === id)
-      if (notification && !notification.isRead) {
-        notification.isRead = true
-        notificationStore.decrementUnreadCount()
-      }
+    const notification = notifications.value.find(n => n._id === id)
+    if (notification && !notification.isRead) {
+      notification.isRead = true
+      notificationStore.decrementUnreadCount()
     }
   } catch (err) {
     console.error('标记已读失败:', err)
@@ -49,10 +45,8 @@ const markAllAsRead = async () => {
   try {
     const { data, error } = await $request.put('/notifications/read-all')
     if (error.value) throw error.value
-    if (data.value?.code === 200) {
-      notifications.value.forEach(n => n.isRead = true)
-      notificationStore.clearUnreadCount()
-    }
+    notifications.value.forEach(n => n.isRead = true)
+    notificationStore.clearUnreadCount()
   } catch (err) {
     console.error('标记全部已读失败:', err)
   }
@@ -146,9 +140,9 @@ fetchNotifications()
             base: 'transition-all duration-200 hover:shadow-md w-full',
             body: { padding: 'p-4' }
           }" :class="[
-              'notification-card',
-              !notification.isRead && 'unread'
-            ]">
+            'notification-card',
+            !notification.isRead && 'unread'
+          ]">
             <div class="notification-content">
               <UAvatar :src="notification.sender.author.avatar" :alt="notification.sender.author.username" size="lg" />
               <div class="notification-body">

@@ -5,7 +5,8 @@ export default defineNuxtPlugin(() => {
 
     console.log('request plugin 初始化:', {
         baseURL: config.public.apiBase,
-        token: userStore.token
+        access_token: userStore.getAccessToken.value,
+        refresh_token: userStore.getRefreshToken.value
     });
 
     // 通用配置和拦截器
@@ -15,7 +16,8 @@ export default defineNuxtPlugin(() => {
         onRequest({ options }) {
             // 添加认证头
             options.headers = {
-                Authorization: userStore.token ? `Bearer ${userStore.token}` : '',
+                Authorization: userStore.getAccessToken.value ? `Bearer ${userStore.getAccessToken.value}` : '',
+                'RefreshToken': userStore.getRefreshToken.value ? `Bearer ${userStore.getRefreshToken.value}` : '',
                 ...options.headers
             };
         },
@@ -27,22 +29,39 @@ export default defineNuxtPlugin(() => {
             }
         },
         // 错误处理器
-        onResponseError({ response }) {
-            console.error('请求错误:', response);
-            switch (response._data.code) {
+        onResponseError: async (error: any) => {
+            const { response } = error
+            const { code, message } = response._data
+            console.log('response:', response._data)
+
+            switch (code) {
+                case 419:
+                    // 令牌过期，尝试刷新
+                    const refreshToken = userStore.getRefreshToken.value
+                    if (refreshToken) {
+                        try {
+                            const { data } = await request.post('/auth/refresh')
+                            // 更新 token
+                            userStore.setLoginState({ access_token: data.value.access_token, refresh_token: data.value.refresh_token }, data.value.user)
+                        } catch (refreshError: any) {
+                            console.log('refreshError:', refreshError)
+                            // 如果是 refresh_token 过期
+                            if (refreshError._data.code === 401) {
+                                userStore.clearLoginState()
+                                navigateTo('/login')
+                                return Promise.reject(new Error('登录已过期，请重新登录'))
+                            }
+                            return Promise.reject(refreshError)
+                        }
+                    }
+                    break
                 case 401:
-                    errorToast('未登录或登录已过期');
-                    userStore.setLoginState('', null);
-                    navigateTo('/login');
-                    break;
-                case 403:
-                    errorToast('无权访问');
-                    break;
-                case 404:
-                    errorToast('资源不存在');
-                    break;
+                    // 未授权（未登录）
+                    userStore.clearLoginState()
+                    navigateTo('/login')
+                    return Promise.reject(new Error('请先登录'))
                 default:
-                    errorToast(response._data?.message || '请求失败');
+                    return Promise.reject(error)
             }
         }
     };

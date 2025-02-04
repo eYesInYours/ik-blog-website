@@ -11,7 +11,7 @@ useHead({
   <div>
     <NuxtLayout>
       <NuxtLoadingIndicator />
-      <NuxtPage />
+      <NuxtPage keepalive />
     </NuxtLayout>
     <UNotifications />
   </div>

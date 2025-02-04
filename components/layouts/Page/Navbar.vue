@@ -42,7 +42,7 @@ const showDrawer = ref(false)
             <LayoutPageNavbarMenuWrapper :menu="item" />
           </template>
           <!-- 已登录显示菜单 -->
-          <template v-if="userStore.token">
+          <template v-if="userStore.getAccessToken.value">
             <template v-for="(item, i) in privateMenus" :key="i">
               <LayoutPageNavbarMenuWrapper :menu="item" />
             </template>
