@@ -45,6 +45,11 @@ export default defineNuxtConfig({
       path: resolve('./components/awesome'),
       global: true,
     },
+    {
+      prefix: 'Article',
+      path: resolve('./components/article'),
+      global: true,
+    },
   ],
 
   colorMode: {
